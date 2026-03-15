@@ -1,1 +1,1 @@
-# CS163-Segment-Tree-Visualizer
+# CS163-Data-Structure-Visualize
