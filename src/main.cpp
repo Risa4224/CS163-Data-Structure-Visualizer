@@ -1,60 +1,26 @@
 #include <SFML/Graphics.hpp>
 #include <optional>
-#include <vector>
-#include <string>
-#include <iostream>
 
-#include "HashTable.hpp"
+#include "screens/MainMenuScreen.hpp"
+#include "screens/HashTableScreen.hpp"
 
-struct Button
+enum class AppScreen
 {
-    sf::RectangleShape shape;
+    MainMenu,
+    HashTableVisualizer
 };
-
-Button makeButton(const sf::Vector2f& position, const sf::Vector2f& size)
-{
-    Button button;
-    button.shape.setSize(size);
-    button.shape.setPosition(position);
-    button.shape.setFillColor(sf::Color(70, 70, 70));
-    button.shape.setOutlineThickness(2.f);
-    button.shape.setOutlineColor(sf::Color::White);
-    return button;
-}
-
-bool isMouseOver(const Button& button, const sf::Vector2f& mousePos)
-{
-    return button.shape.getGlobalBounds().contains(mousePos);
-}
 
 int main()
 {
-    const unsigned int windowWidth = 1200;
-    const unsigned int windowHeight = 1000;
-
-    sf::RenderWindow window(sf::VideoMode({windowWidth, windowHeight}), "6 Buttons");
+    sf::RenderWindow window(sf::VideoMode({1280, 720}), "Data Structure Visualizer");
     window.setFramerateLimit(60);
 
-    HashTable hashTable;
+    const sf::Font font("assets/fonts/roboto.ttf");
 
-    std::vector<Button> buttons;
-    sf::Vector2f buttonSize(200.f, 100.f);
+    MainMenuScreen mainMenuScreen(font);
+    HashTableScreen hashTableScreen(font);
 
-    float gapX = 50.f;
-    float gapY = 30.f;
-    float totalWidth = 3 * buttonSize.x + 2 * gapX;
-    float startX = (windowWidth - totalWidth) / 2.f;
-
-    float bottomMargin = 40.f;
-    float row2Y = windowHeight - bottomMargin - buttonSize.y;
-    float row1Y = row2Y - gapY - buttonSize.y;
-
-    buttons.push_back(makeButton({startX, row1Y}, buttonSize));
-    buttons.push_back(makeButton({startX + buttonSize.x + gapX, row1Y}, buttonSize));
-    buttons.push_back(makeButton({startX + 2 * (buttonSize.x + gapX), row1Y}, buttonSize));
-    buttons.push_back(makeButton({startX, row2Y}, buttonSize));
-    buttons.push_back(makeButton({startX + buttonSize.x + gapX, row2Y}, buttonSize));
-    buttons.push_back(makeButton({startX + 2 * (buttonSize.x + gapX), row2Y}, buttonSize));
+    AppScreen currentScreen = AppScreen::MainMenu;
 
     while (window.isOpen())
     {
@@ -64,64 +30,54 @@ int main()
             {
                 window.close();
             }
-            else if (const auto* mouseMoved = event->getIf<sf::Event::MouseMoved>())
+            else if (const auto* resized = event->getIf<sf::Event::Resized>())
             {
-                sf::Vector2f mousePos(
-                    static_cast<float>(mouseMoved->position.x),
-                    static_cast<float>(mouseMoved->position.y)
-                );
-
-                for (auto& button : buttons)
-                {
-                    if (isMouseOver(button, mousePos))
-                        button.shape.setFillColor(sf::Color(100, 100, 220));
-                    else
-                        button.shape.setFillColor(sf::Color(70, 70, 70));
-                }
+                sf::FloatRect visibleArea({0.f, 0.f}, sf::Vector2f(resized->size));
+                window.setView(sf::View(visibleArea));
             }
-            else if (const auto* mousePressed = event->getIf<sf::Event::MouseButtonPressed>())
+            else
             {
-                if (mousePressed->button == sf::Mouse::Button::Left)
+                if (currentScreen == AppScreen::MainMenu)
                 {
-                    sf::Vector2f mousePos(
-                        static_cast<float>(mousePressed->position.x),
-                        static_cast<float>(mousePressed->position.y)
-                    );
-
-                    for (int i = 0; i < static_cast<int>(buttons.size()); i++)
+                    if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>())
                     {
-                        if (isMouseOver(buttons[i], mousePos))
+                        if (keyPressed->scancode == sf::Keyboard::Scancode::Escape)
+                            window.close();
+                    }
+
+                    std::optional<StructureType> requestedStructure;
+                    mainMenuScreen.handleEvent(*event, window, requestedStructure);
+
+                    if (requestedStructure.has_value())
+                    {
+                        if (requestedStructure.value() == StructureType::HashTable)
                         {
-                            std::cout << "Button " << i + 1 << " clicked!\n";
-
-                            if (i == 0)
-                            {
-                                HashTable::InsertResult result = hashTable.insertRandom();
-
-                                window.setTitle(
-                                    "Inserted key=" + std::to_string(result.key) +
-                                    " value=" + std::to_string(result.value) +
-                                    " bucket=" + std::to_string(result.bucket)
-                                );
-                            }
-                            else if (i == 5)
-                            {
-                                window.close();
-                            }
+                            currentScreen = AppScreen::HashTableVisualizer;
                         }
                     }
                 }
+                else if (currentScreen == AppScreen::HashTableVisualizer)
+                {
+                    bool goBack = false;
+                    hashTableScreen.handleEvent(*event, goBack);
+
+                    if (goBack)
+                        currentScreen = AppScreen::MainMenu;
+                }
             }
         }
 
-        window.clear(sf::Color(30, 30, 30));
+        if (currentScreen == AppScreen::MainMenu)
+            mainMenuScreen.update(window);
+        else if (currentScreen == AppScreen::HashTableVisualizer)
+            hashTableScreen.update(window);
 
-        hashTable.draw(window);
+        window.clear(sf::Color(30, 30, 45));
 
-        for (const auto& button : buttons)
-        {
-            window.draw(button.shape);
-        }
+        if (currentScreen == AppScreen::MainMenu)
+            mainMenuScreen.draw(window);
+        else if (currentScreen == AppScreen::HashTableVisualizer)
+            hashTableScreen.draw(window);
 
         window.display();
     }

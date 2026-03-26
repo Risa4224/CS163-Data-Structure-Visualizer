@@ -9,11 +9,26 @@ FetchContent_Declare(SFML
     GIT_TAG 3.0.2
     GIT_SHALLOW ON
     EXCLUDE_FROM_ALL
-    SYSTEM)
+    SYSTEM
+)
 FetchContent_MakeAvailable(SFML)
 
-add_executable(main src/main.cpp src/HashTable.cpp)
+add_executable(main
+    src/main.cpp
+    src/ui/Button.cpp
+    src/screens/MainMenuScreen.cpp
+    src/screens/HashTableScreen.cpp
+)
+
 target_compile_features(main PRIVATE cxx_std_17)
-target_link_libraries(main PRIVATE SFML::Graphics SFML::Window SFML::Main SFML::System)
+
+target_include_directories(main PRIVATE src)
+
+target_link_libraries(main PRIVATE
+    SFML::Graphics
+    SFML::Window
+    SFML::Main
+    SFML::System
+)
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT main)
