@@ -24,11 +24,11 @@ struct NodeState
 struct TreeState
 {
     std::vector<NodeState> captures;
-    std::string action; 
+    std::string action;
     int codeLine;
     int highlightData;
 
-    std::string description;      
+    std::string description;
 };
 class AVLTree
 {
@@ -61,6 +61,8 @@ private:
 
     // State-tracking
     std::vector<TreeState> animationStates;
+
+    int copyTreeToSnapshot(Node *node, std::vector<NodeState> &snapshot, float x, float y, float offset);
     void takeSnapshot(int highlightData, std::string action, int codeLine);
 };
 
