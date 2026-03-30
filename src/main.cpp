@@ -59,7 +59,7 @@ int main()
                 else if (currentScreen == AppScreen::HashTableVisualizer)
                 {
                     bool goBack = false;
-                    hashTableScreen.handleEvent(*event, goBack);
+                    hashTableScreen.handleEvent(*event,window, goBack);
 
                     if (goBack)
                         currentScreen = AppScreen::MainMenu;
