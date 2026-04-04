@@ -18,6 +18,8 @@ add_executable(main
     src/ui/Button.cpp
     src/screens/MainMenuScreen.cpp
     src/screens/HashTableScreen.cpp
+    src/Graph.cpp
+    src/screens/GraphScreen.cpp
 )
 
 target_compile_features(main PRIVATE cxx_std_17)
