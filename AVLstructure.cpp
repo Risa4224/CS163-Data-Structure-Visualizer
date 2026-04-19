@@ -335,9 +335,9 @@ void AVLTree::takeSnapshot(int highlightData, std::string action, int codeLine)
     newState.action = action;
     newState.codeLine = codeLine;
 
-    float startX = 400.0f;
-    float startY = 50.0f;
-    float initialOffset = 200.0f;
+    float startX = 750.0f;
+    float startY = 80.0f;
+    float initialOffset = 250.0f;
 
     copyTreeToSnapshot(root, newState.captures, startX, startY, initialOffset);
 

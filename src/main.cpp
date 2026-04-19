@@ -3,11 +3,13 @@
 
 #include "screens/MainMenuScreen.hpp"
 #include "screens/HashTableScreen.hpp"
+#include "screens/AVLTreeScreen.hpp"
 
 enum class AppScreen
 {
     MainMenu,
-    HashTableVisualizer
+    HashTableVisualizer,
+    AVLTreeVisualizer
 };
 
 int main()
@@ -19,6 +21,7 @@ int main()
 
     MainMenuScreen mainMenuScreen(font);
     HashTableScreen hashTableScreen(font);
+    AVLTreeScreen avlTreeScreen(font);
 
     AppScreen currentScreen = AppScreen::MainMenu;
 
@@ -30,7 +33,7 @@ int main()
             {
                 window.close();
             }
-            else if (const auto* resized = event->getIf<sf::Event::Resized>())
+            else if (const auto *resized = event->getIf<sf::Event::Resized>())
             {
                 sf::FloatRect visibleArea({0.f, 0.f}, sf::Vector2f(resized->size));
                 window.setView(sf::View(visibleArea));
@@ -39,7 +42,7 @@ int main()
             {
                 if (currentScreen == AppScreen::MainMenu)
                 {
-                    if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>())
+                    if (const auto *keyPressed = event->getIf<sf::Event::KeyPressed>())
                     {
                         if (keyPressed->scancode == sf::Keyboard::Scancode::Escape)
                             window.close();
@@ -54,13 +57,22 @@ int main()
                         {
                             currentScreen = AppScreen::HashTableVisualizer;
                         }
+                        else if (requestedStructure.value() == StructureType::AVLTree)
+                            currentScreen = AppScreen::AVLTreeVisualizer;
                     }
                 }
                 else if (currentScreen == AppScreen::HashTableVisualizer)
                 {
                     bool goBack = false;
-                    hashTableScreen.handleEvent(*event,window, goBack);
+                    hashTableScreen.handleEvent(*event, window, goBack);
 
+                    if (goBack)
+                        currentScreen = AppScreen::MainMenu;
+                }
+                else if (currentScreen == AppScreen::AVLTreeVisualizer) // Xử lý Event cho AVL
+                {
+                    bool goBack = false;
+                    avlTreeScreen.handleEvent(*event, window, goBack);
                     if (goBack)
                         currentScreen = AppScreen::MainMenu;
                 }
@@ -71,6 +83,8 @@ int main()
             mainMenuScreen.update(window);
         else if (currentScreen == AppScreen::HashTableVisualizer)
             hashTableScreen.update(window);
+        else if (currentScreen == AppScreen::AVLTreeVisualizer)
+            avlTreeScreen.update(window);
 
         window.clear(sf::Color(30, 30, 45));
 
@@ -78,6 +92,8 @@ int main()
             mainMenuScreen.draw(window);
         else if (currentScreen == AppScreen::HashTableVisualizer)
             hashTableScreen.draw(window);
+        else if (currentScreen == AppScreen::AVLTreeVisualizer)
+            avlTreeScreen.draw(window);
 
         window.display();
     }

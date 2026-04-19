@@ -1,7 +1,7 @@
 #ifndef AVLSTRUCTURE_H
 #define AVLSTRUCTURE_H
-#include <vector>;
-#include <string>;
+#include <vector>
+#include <string>
 
 struct Node
 {
@@ -44,6 +44,8 @@ public:
     void postorderTraversal();
     int getHeight();
     bool isEmpty();
+    // State-tracking
+    std::vector<TreeState> animationStates;
 
 private:
     Node *insert(Node *node, int data);
@@ -58,9 +60,6 @@ private:
     void preorder(Node *node);
     void postorder(Node *node);
     void destroyTree(Node *node);
-
-    // State-tracking
-    std::vector<TreeState> animationStates;
 
     int copyTreeToSnapshot(Node *node, std::vector<NodeState> &snapshot, float x, float y, float offset);
     void takeSnapshot(int highlightData, std::string action, int codeLine);

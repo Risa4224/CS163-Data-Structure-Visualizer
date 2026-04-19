@@ -11,7 +11,8 @@
             "intelliSenseMode": "windows-gcc-x86",
             "compilerArgs": [
                 ""
-            ]
+            ],
+            "configurationProvider": "ms-vscode.cmake-tools"
         }
     ],
     "version": 4
