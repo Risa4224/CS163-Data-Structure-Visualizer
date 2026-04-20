@@ -44,13 +44,14 @@ public:
     void postorderTraversal();
     int getHeight();
     bool isEmpty();
+    void clear();
     // State-tracking
     std::vector<TreeState> animationStates;
 
 private:
-    Node *insert(Node *node, int data);
-    Node *remove(Node *node, int data);
-    Node *balance(Node *node);
+    Node *insert(Node *&node, int data);
+    Node *remove(Node *&node, int data);
+    Node *balance(Node *&node);
     int getBalanceFactor(Node *node);
     int height(Node *node);
     Node *rotateLeft(Node *node);
