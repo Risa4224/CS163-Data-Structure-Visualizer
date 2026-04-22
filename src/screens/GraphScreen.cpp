@@ -74,7 +74,7 @@ void GraphScreen::createRandomGraph() {
     // Tạo các cạnh ngẫu nhiên
     for (int i = 0; i < numNodes; ++i) {
         for (int j = i + 1; j < numNodes; ++j) {
-            if (std::rand() % 100 < 60) { // 60% tỉ lệ có cạnh nối
+            if (std::rand() % 100 < 35) { // 60% tỉ lệ có cạnh nối
                 int weight = (std::rand() % 90) + 10; // Trọng số từ 10 - 99
                 m_graph.addEdge(i, j, weight);
             }
@@ -193,10 +193,28 @@ void GraphScreen::draw(sf::RenderWindow& window) const {
         line.setRotation(sf::radians(std::atan2(v.y - u.y, v.x - u.x)));
         window.draw(line);
 
-        // Hiển thị Text trọng số ở giữa cạnh
+        // 1. Tính toán vị trí: Lệch 35% chiều dài cạnh thay vì 50% (tránh tâm đường tròn)
+        float t = 0.35f; 
+        float textX = u.x + (v.x - u.x) * t;
+        float textY = u.y + (v.y - u.y) * t;
+
         sf::Text weightText(m_font, std::to_string(edge.weight), 18);
         weightText.setFillColor(sf::Color::Blue);
-        weightText.setPosition({(u.x + v.x) / 2.f - 10.f, (u.y + v.y) / 2.f - 15.f});
+        
+        // Căn tâm cho text
+        sf::FloatRect textBounds = weightText.getLocalBounds();
+        weightText.setOrigin({textBounds.position.x + textBounds.size.x / 2.f, 
+                              textBounds.position.y + textBounds.size.y / 2.f});
+        weightText.setPosition({textX, textY});
+
+        // 2. Tạo một hình chữ nhật nhỏ làm "nền" để lót dưới con số, che đi đường kẻ
+        sf::RectangleShape bgRect({textBounds.size.x + 6.f, textBounds.size.y + 6.f});
+        bgRect.setOrigin({bgRect.getSize().x / 2.f, bgRect.getSize().y / 2.f});
+        bgRect.setPosition({textX, textY});
+        bgRect.setFillColor(sf::Color(212, 212, 212)); // Cùng màu với background của app
+
+        // 3. Vẽ nền che trước, vẽ số lên sau
+        window.draw(bgRect);
         window.draw(weightText);
     }
 
