@@ -20,6 +20,8 @@ add_executable(main
     src/screens/HashTableScreen.cpp
     AVLstructure.cpp
     src/screens/AVLTreeScreen.cpp
+    src/Graph.cpp
+    src/screens/GraphScreen.cpp
 )
 
 target_compile_features(main PRIVATE cxx_std_17)

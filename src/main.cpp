@@ -4,12 +4,14 @@
 #include "screens/MainMenuScreen.hpp"
 #include "screens/HashTableScreen.hpp"
 #include "screens/AVLTreeScreen.hpp"
+#include "screens/GraphScreen.hpp"
 
 enum class AppScreen
 {
     MainMenu,
     HashTableVisualizer,
-    AVLTreeVisualizer
+    AVLTreeVisualizer,
+    GraphVisualizer // Thêm trạng thái màn hình cho Graph
 };
 
 int main()
@@ -22,6 +24,7 @@ int main()
     MainMenuScreen mainMenuScreen(font);
     HashTableScreen hashTableScreen(font);
     AVLTreeScreen avlTreeScreen(font);
+    GraphScreen graphScreen(font);
 
     AppScreen currentScreen = AppScreen::MainMenu;
 
@@ -59,12 +62,26 @@ int main()
                         }
                         else if (requestedStructure.value() == StructureType::AVLTree)
                             currentScreen = AppScreen::AVLTreeVisualizer;
+                        // Bắt sự kiện khi người dùng chọn Graph ở Main Menu
+                        else if (requestedStructure.value() == StructureType::Graph) 
+                        {
+                            currentScreen = AppScreen::GraphVisualizer;
+                        }
                     }
                 }
                 else if (currentScreen == AppScreen::HashTableVisualizer)
                 {
                     bool goBack = false;
                     hashTableScreen.handleEvent(*event, window, goBack);
+
+                    if (goBack)
+                        currentScreen = AppScreen::MainMenu;
+                }
+                // Xử lý sự kiện click chuột/bàn phím cho màn hình Graph
+                else if (currentScreen == AppScreen::GraphVisualizer)
+                {
+                    bool goBack = false;
+                    graphScreen.handleEvent(*event, window, goBack);
 
                     if (goBack)
                         currentScreen = AppScreen::MainMenu;
@@ -79,21 +96,27 @@ int main()
             }
         }
 
+        // Cập nhật logic (update)
         if (currentScreen == AppScreen::MainMenu)
             mainMenuScreen.update(window);
         else if (currentScreen == AppScreen::HashTableVisualizer)
             hashTableScreen.update(window);
         else if (currentScreen == AppScreen::AVLTreeVisualizer)
             avlTreeScreen.update(window);
+        else if (currentScreen == AppScreen::GraphVisualizer) // Thêm update cho Graph
+            graphScreen.update(window);
 
         window.clear(sf::Color(30, 30, 45));
 
+        // Vẽ lên màn hình (draw)
         if (currentScreen == AppScreen::MainMenu)
             mainMenuScreen.draw(window);
         else if (currentScreen == AppScreen::HashTableVisualizer)
             hashTableScreen.draw(window);
         else if (currentScreen == AppScreen::AVLTreeVisualizer)
             avlTreeScreen.draw(window);
+        else if (currentScreen == AppScreen::GraphVisualizer) // Thêm draw cho Graph
+            graphScreen.draw(window);
 
         window.display();
     }
