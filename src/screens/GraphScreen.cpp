@@ -15,12 +15,15 @@ GraphScreen::GraphScreen(const sf::Font& font)
       m_createRandomButton({190.f, 46.f}, {56.f, 248.f}, font, "Create Random", 20),
       m_createButton({190.f, 46.f}, {56.f, 300.f}, font, "Create (V, E)", 20),
       m_runButton({190.f, 46.f}, {56.f, 352.f}, font, "Run Kruskal", 22),
-      m_prevButton({190.f, 46.f}, {56.f, 404.f}, font, "Step Prev", 22),
-      m_nextButton({190.f, 46.f}, {56.f, 456.f}, font, "Step Next", 22),
-      m_backButton({190.f, 46.f}, {56.f, 508.f}, font, "Back", 22),
+      m_autoRunButton({190.f, 46.f}, {56.f, 404.f}, font, "Auto / Pause", 22),
+      m_prevButton({190.f, 46.f}, {56.f, 456.f}, font, "Step Prev", 22),
+      m_nextButton({190.f, 46.f}, {56.f, 508.f}, font, "Step Next", 22),
+      m_backButton({190.f, 46.f}, {56.f, 560.f}, font, "Back", 22),
       m_isInputFocused(false),
       m_currentStateIndex(0),
-      m_hasResult(false)
+      m_hasResult(false),
+      m_isAutoRunning(false),
+      m_stepDelay(1.0f)
 {
     std::srand(static_cast<unsigned>(std::time(nullptr)));
 
@@ -30,7 +33,7 @@ GraphScreen::GraphScreen(const sf::Font& font)
     m_leftBar.setSize({52.f, 720.f});
     m_leftBar.setFillColor(sf::Color(223, 84, 58));
 
-    m_menuPanel.setSize({210.f, 322.f}); 
+    m_menuPanel.setSize({210.f, 374.f}); 
     m_menuPanel.setPosition({52.f, 238.f});
     m_menuPanel.setFillColor(sf::Color(223, 84, 58));
 
@@ -61,6 +64,7 @@ GraphScreen::GraphScreen(const sf::Font& font)
     styleMenuButton(m_createRandomButton);
     styleMenuButton(m_createButton);
     styleMenuButton(m_runButton);
+    styleMenuButton(m_autoRunButton);
     styleMenuButton(m_prevButton);
     styleMenuButton(m_nextButton);
     styleMenuButton(m_backButton);
@@ -78,6 +82,7 @@ void GraphScreen::createCustomGraph(int v, int e) {
     m_states.clear();
     m_hasResult = false;
     m_currentStateIndex = 0;
+    m_isAutoRunning = false;
 
     // 1. Giới hạn V và E để không bị crash hoặc vẽ tràn màn hình
     if (v < 2) v = 2;
@@ -133,6 +138,7 @@ void GraphScreen::createRandomGraph() {
     m_states.clear();
     m_hasResult = false;
     m_currentStateIndex = 0;
+    m_isAutoRunning = false;
 
     int numNodes = (std::rand() % 7) + 4;
     float centerX = 750.f;
@@ -185,45 +191,43 @@ void GraphScreen::prevStep() {
 void GraphScreen::handleEvent(const sf::Event& event, const sf::RenderWindow& window, bool& goBack) {
     sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
 
-    // 1. Xử lý hiệu ứng di chuột (Hover) cho tất cả các nút
+    // 1. CHỈ CẬP NHẬT MÀU SẮC KHI DI CHUỘT (KHÔNG CHẠY LOGIC Ở ĐÂY)
     if (event.is<sf::Event::MouseMoved>()) {
         m_createRandomButton.update(mousePos);
         m_createButton.update(mousePos);
         m_runButton.update(mousePos);
+        m_autoRunButton.update(mousePos);
         m_prevButton.update(mousePos);
         m_nextButton.update(mousePos);
         m_backButton.update(mousePos);
     }
 
-    // 2. Xử lý gõ phím (Chỉ cho phép gõ khi đã click vào ô)
+    // 2. LOGIC GÕ PHÍM
     if (const auto* textEvent = event.getIf<sf::Event::TextEntered>()) {
-        if (!m_isInputFocused) return; // CHẶN: Không cho gõ nếu chưa click vào ô nhập liệu
+        if (!m_isInputFocused) return;
 
         char c = static_cast<char>(textEvent->unicode);
-        // Cho phép nhập số và phím khoảng trắng (space)
         if ((c >= '0' && c <= '9') || c == ' ') {
             if (m_input.size() < 10) m_input += c;
-        }
-        // Xử lý nút Backspace (mã ASCII là 8)
-        else if (textEvent->unicode == 8 && !m_input.empty()) {
+        } else if (textEvent->unicode == 8 && !m_input.empty()) {
             m_input.pop_back();
         }
     }
 
-    // 3. Xử lý Click chuột trái
+    // 3. LOGIC CLICK CHUỘT TRÁI (TẤT CẢ CHỨC NĂNG PHẢI NẰM TRONG NÀY)
     if (const auto* mousePressed = event.getIf<sf::Event::MouseButtonPressed>()) {
         if (mousePressed->button != sf::Mouse::Button::Left) return;
 
-        // Bật/tắt trạng thái Focus của ô nhập liệu
+        // Focus hộp nhập
         if (m_inputBox.getGlobalBounds().contains(mousePos)) {
             m_isInputFocused = true;
-            m_inputBox.setOutlineColor(sf::Color(46, 204, 113)); // Viền xanh báo hiệu đang gõ
+            m_inputBox.setOutlineColor(sf::Color(46, 204, 113));
         } else {
             m_isInputFocused = false;
-            m_inputBox.setOutlineColor(sf::Color(80, 80, 80)); // Viền xám bình thường
+            m_inputBox.setOutlineColor(sf::Color(80, 80, 80));
         }
 
-        // Các nút bấm
+        // Click các nút
         if (m_backButton.contains(mousePos)) { goBack = true; return; }
         
         if (m_createRandomButton.contains(mousePos)) { 
@@ -234,8 +238,8 @@ void GraphScreen::handleEvent(const sf::Event& event, const sf::RenderWindow& wi
         if (m_createButton.contains(mousePos)) { 
             int v = 0, e = 0;
             if (parseInput(v, e)) {
-                createCustomGraph(v, e); // Tạo đồ thị theo số V và E nhập vào
-                m_input.clear();         // Xóa chữ trong ô sau khi tạo xong
+                createCustomGraph(v, e);
+                m_input.clear();
             } else {
                 m_messageText.setString("Vui long nhap V va E hop le (vd: 6 8)");
             }
@@ -243,6 +247,28 @@ void GraphScreen::handleEvent(const sf::Event& event, const sf::RenderWindow& wi
         }
 
         if (m_runButton.contains(mousePos)) { runKruskal(); return; }
+        
+        // LOGIC AUTO RUN NẰM AN TOÀN TRONG SỰ KIỆN CLICK CHUỘT TRÁI
+        if (m_autoRunButton.contains(mousePos)) {
+            if (m_graph.nodes.empty()) {
+                m_messageText.setString("Please create a graph first!");
+                return;
+            }
+            if (!m_hasResult) runKruskal(); 
+            if (m_states.empty()) return;
+
+            m_isAutoRunning = !m_isAutoRunning; // Tắt/bật
+            
+            if (m_isAutoRunning) {
+                if (m_currentStateIndex >= (int)m_states.size() - 1) {
+                    m_currentStateIndex = 0; // Chạy lại từ đầu nếu đã xong
+                }
+                m_messageText.setString(m_states[m_currentStateIndex].message);
+                m_autoRunClock.restart();
+            }
+            return;
+        }
+
         if (m_nextButton.contains(mousePos)) { nextStep(); return; }
         if (m_prevButton.contains(mousePos)) { prevStep(); return; }
     }
@@ -251,6 +277,20 @@ void GraphScreen::handleEvent(const sf::Event& event, const sf::RenderWindow& wi
 void GraphScreen::update(const sf::RenderWindow& window) {
     centerTextX(m_messageText, 700.f, 690.f);
     m_inputText.setString(m_input.empty() ? "..." : m_input);
+
+    // Logic Tự Động Chạy
+    if (m_isAutoRunning) {
+        // Nếu đồng hồ đo được thời gian trôi qua lớn hơn delay (1 giây)
+        if (m_autoRunClock.getElapsedTime().asSeconds() >= m_stepDelay) {
+            m_autoRunClock.restart(); // Reset đồng hồ cho bước kế tiếp
+            
+            if (m_currentStateIndex < (int)m_states.size() - 1) {
+                nextStep(); // Tự động gọi hàm đi tới
+            } else {
+                m_isAutoRunning = false; // Thuật toán kết thúc -> tự động tắt Auto
+            }
+        }
+    }
 }
 
 void GraphScreen::draw(sf::RenderWindow& window) const {
@@ -265,7 +305,7 @@ void GraphScreen::draw(sf::RenderWindow& window) const {
 
     sf::Text arrow(m_font, "<", 34);
     arrow.setFillColor(sf::Color::White);
-    arrow.setPosition({18.f, 500.f}); // Điều chỉnh lại Y để khớp với nút Back
+    arrow.setPosition({18.f, 552.f}); // Điều chỉnh lại Y để khớp với nút Back
     window.draw(arrow);
 
     window.draw(m_topInfoText);
@@ -274,6 +314,7 @@ void GraphScreen::draw(sf::RenderWindow& window) const {
     m_createRandomButton.draw(window);
     m_createButton.draw(window);
     m_runButton.draw(window);
+    m_autoRunButton.draw(window);
     m_prevButton.draw(window);
     m_nextButton.draw(window);
     m_backButton.draw(window);

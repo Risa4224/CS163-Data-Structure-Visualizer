@@ -40,6 +40,7 @@ private:
     Button m_createRandomButton;
     Button m_createButton;
     Button m_runButton;
+    Button m_autoRunButton;
     Button m_prevButton;
     Button m_nextButton;
     Button m_backButton;
@@ -53,4 +54,7 @@ private:
     std::vector<GraphState> m_states;
     int m_currentStateIndex;
     bool m_hasResult;
+    bool m_isAutoRunning;     
+    sf::Clock m_autoRunClock; 
+    float m_stepDelay;        
 };
