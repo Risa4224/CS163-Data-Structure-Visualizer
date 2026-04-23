@@ -1,4 +1,7 @@
 #include "GraphScreen.hpp"
+#include <sstream>
+#include <random>
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
@@ -7,11 +10,15 @@ GraphScreen::GraphScreen(const sf::Font& font)
     : m_font(font),
       m_topInfoText(font, "Minimum Spanning Tree (Kruskal)", 24),
       m_messageText(font, "Ready. Click 'Create Random' to start.", 20),
-      m_createButton({190.f, 46.f}, {56.f, 300.f}, font, "Create Random", 20),
+      m_inputLabel(font, "V & E (eg: 6 8)", 18),
+      m_inputText(font, "", 24),
+      m_createRandomButton({190.f, 46.f}, {56.f, 248.f}, font, "Create Random", 20),
+      m_createButton({190.f, 46.f}, {56.f, 300.f}, font, "Create (V, E)", 20),
       m_runButton({190.f, 46.f}, {56.f, 352.f}, font, "Run Kruskal", 22),
       m_prevButton({190.f, 46.f}, {56.f, 404.f}, font, "Step Prev", 22),
       m_nextButton({190.f, 46.f}, {56.f, 456.f}, font, "Step Next", 22),
       m_backButton({190.f, 46.f}, {56.f, 508.f}, font, "Back", 22),
+      m_isInputFocused(false),
       m_currentStateIndex(0),
       m_hasResult(false)
 {
@@ -23,9 +30,21 @@ GraphScreen::GraphScreen(const sf::Font& font)
     m_leftBar.setSize({52.f, 720.f});
     m_leftBar.setFillColor(sf::Color(223, 84, 58));
 
-    m_menuPanel.setSize({210.f, 270.f}); // Chứa 5 nút
-    m_menuPanel.setPosition({52.f, 290.f});
+    m_menuPanel.setSize({210.f, 322.f}); 
+    m_menuPanel.setPosition({52.f, 238.f});
     m_menuPanel.setFillColor(sf::Color(223, 84, 58));
+
+    m_inputLabel.setFillColor(sf::Color::Black);
+    m_inputLabel.setPosition({56.f, 150.f});
+
+    m_inputBox.setSize({190.f, 50.f});
+    m_inputBox.setPosition({56.f, 180.f});
+    m_inputBox.setFillColor(sf::Color::White);
+    m_inputBox.setOutlineThickness(2.f);
+    m_inputBox.setOutlineColor(sf::Color(80, 80, 80));
+
+    m_inputText.setFillColor(sf::Color::Black);
+    m_inputText.setPosition({70.f, 190.f});
 
     m_topInfoText.setFillColor(sf::Color::Black);
     centerTextX(m_topInfoText, 700.f, 24.f);
@@ -39,11 +58,68 @@ GraphScreen::GraphScreen(const sf::Font& font)
         b.setSelectedColor(sf::Color(190, 65, 45));
     };
 
+    styleMenuButton(m_createRandomButton);
     styleMenuButton(m_createButton);
     styleMenuButton(m_runButton);
     styleMenuButton(m_prevButton);
     styleMenuButton(m_nextButton);
     styleMenuButton(m_backButton);
+}
+
+bool GraphScreen::parseInput(int& v, int& e) const {
+    if (m_input.empty()) return false;
+    std::stringstream ss(m_input);
+    if (ss >> v >> e) return true;
+    return false;
+}
+
+void GraphScreen::createCustomGraph(int v, int e) {
+    m_graph.clear();
+    m_states.clear();
+    m_hasResult = false;
+    m_currentStateIndex = 0;
+
+    // 1. Giới hạn V và E để không bị crash hoặc vẽ tràn màn hình
+    if (v < 2) v = 2;
+    if (v > 12) v = 12; // Tối đa 12 đỉnh để vẽ vòng tròn cho đẹp
+    
+    int maxEdges = v * (v - 1) / 2; // Số cạnh tối đa của đơn đồ thị vô hướng
+    if (e > maxEdges) e = maxEdges;
+    if (e < 0) e = 0;
+
+    // 2. Tạo đỉnh
+    float centerX = 750.f;
+    float centerY = 360.f;
+    float radius = 220.f;
+    for (int i = 0; i < v; ++i) {
+        float angle = i * (2 * 3.14159f / v);
+        float x = centerX + std::cos(angle) * radius;
+        float y = centerY + std::sin(angle) * radius;
+        m_graph.addNode(i, x, y);
+    }
+
+    // 3. Tạo danh sách tất cả các cạnh có thể có
+    std::vector<std::pair<int, int>> possibleEdges;
+    for (int i = 0; i < v; ++i) {
+        for (int j = i + 1; j < v; ++j) {
+            possibleEdges.push_back({i, j});
+        }
+    }
+
+    // 4. Xáo trộn ngẫu nhiên (Shuffle)
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(possibleEdges.begin(), possibleEdges.end(), g);
+
+    // 5. Lấy đúng e cạnh
+    for (int i = 0; i < e; ++i) {
+        int u = possibleEdges[i].first;
+        int dest = possibleEdges[i].second;
+        int weight = (std::rand() % 90) + 10;
+        m_graph.addEdge(u, dest, weight);
+    }
+
+    m_messageText.setString("Created graph: " + std::to_string(v) + " vertices, " + std::to_string(e) + " edges.");
 }
 
 void GraphScreen::centerTextX(sf::Text& text, float x, float y) {
@@ -58,7 +134,7 @@ void GraphScreen::createRandomGraph() {
     m_hasResult = false;
     m_currentStateIndex = 0;
 
-    int numNodes = 6;
+    int numNodes = (std::rand() % 7) + 4;
     float centerX = 750.f;
     float centerY = 360.f;
     float radius = 200.f;
@@ -109,7 +185,9 @@ void GraphScreen::prevStep() {
 void GraphScreen::handleEvent(const sf::Event& event, const sf::RenderWindow& window, bool& goBack) {
     sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
 
+    // 1. Xử lý hiệu ứng di chuột (Hover) cho tất cả các nút
     if (event.is<sf::Event::MouseMoved>()) {
+        m_createRandomButton.update(mousePos);
         m_createButton.update(mousePos);
         m_runButton.update(mousePos);
         m_prevButton.update(mousePos);
@@ -117,11 +195,53 @@ void GraphScreen::handleEvent(const sf::Event& event, const sf::RenderWindow& wi
         m_backButton.update(mousePos);
     }
 
+    // 2. Xử lý gõ phím (Chỉ cho phép gõ khi đã click vào ô)
+    if (const auto* textEvent = event.getIf<sf::Event::TextEntered>()) {
+        if (!m_isInputFocused) return; // CHẶN: Không cho gõ nếu chưa click vào ô nhập liệu
+
+        char c = static_cast<char>(textEvent->unicode);
+        // Cho phép nhập số và phím khoảng trắng (space)
+        if ((c >= '0' && c <= '9') || c == ' ') {
+            if (m_input.size() < 10) m_input += c;
+        }
+        // Xử lý nút Backspace (mã ASCII là 8)
+        else if (textEvent->unicode == 8 && !m_input.empty()) {
+            m_input.pop_back();
+        }
+    }
+
+    // 3. Xử lý Click chuột trái
     if (const auto* mousePressed = event.getIf<sf::Event::MouseButtonPressed>()) {
         if (mousePressed->button != sf::Mouse::Button::Left) return;
 
+        // Bật/tắt trạng thái Focus của ô nhập liệu
+        if (m_inputBox.getGlobalBounds().contains(mousePos)) {
+            m_isInputFocused = true;
+            m_inputBox.setOutlineColor(sf::Color(46, 204, 113)); // Viền xanh báo hiệu đang gõ
+        } else {
+            m_isInputFocused = false;
+            m_inputBox.setOutlineColor(sf::Color(80, 80, 80)); // Viền xám bình thường
+        }
+
+        // Các nút bấm
         if (m_backButton.contains(mousePos)) { goBack = true; return; }
-        if (m_createButton.contains(mousePos)) { createRandomGraph(); return; }
+        
+        if (m_createRandomButton.contains(mousePos)) { 
+            createRandomGraph(); 
+            return; 
+        }
+
+        if (m_createButton.contains(mousePos)) { 
+            int v = 0, e = 0;
+            if (parseInput(v, e)) {
+                createCustomGraph(v, e); // Tạo đồ thị theo số V và E nhập vào
+                m_input.clear();         // Xóa chữ trong ô sau khi tạo xong
+            } else {
+                m_messageText.setString("Vui long nhap V va E hop le (vd: 6 8)");
+            }
+            return; 
+        }
+
         if (m_runButton.contains(mousePos)) { runKruskal(); return; }
         if (m_nextButton.contains(mousePos)) { nextStep(); return; }
         if (m_prevButton.contains(mousePos)) { prevStep(); return; }
@@ -130,12 +250,18 @@ void GraphScreen::handleEvent(const sf::Event& event, const sf::RenderWindow& wi
 
 void GraphScreen::update(const sf::RenderWindow& window) {
     centerTextX(m_messageText, 700.f, 690.f);
+    m_inputText.setString(m_input.empty() ? "..." : m_input);
 }
 
 void GraphScreen::draw(sf::RenderWindow& window) const {
     window.draw(m_background);
     window.draw(m_leftBar);
     window.draw(m_menuPanel);
+
+    window.draw(m_inputLabel);
+    window.draw(m_inputBox);
+    window.draw(m_inputText);
+    
 
     sf::Text arrow(m_font, "<", 34);
     arrow.setFillColor(sf::Color::White);
@@ -145,6 +271,7 @@ void GraphScreen::draw(sf::RenderWindow& window) const {
     window.draw(m_topInfoText);
     window.draw(m_messageText);
 
+    m_createRandomButton.draw(window);
     m_createButton.draw(window);
     m_runButton.draw(window);
     m_prevButton.draw(window);

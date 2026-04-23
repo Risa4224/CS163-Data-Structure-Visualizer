@@ -19,6 +19,7 @@ private:
     void nextStep();
     void prevStep();
 
+
     sf::Font m_font;
     sf::RectangleShape m_background;
     sf::RectangleShape m_leftBar;
@@ -27,12 +28,25 @@ private:
     sf::Text m_topInfoText;
     sf::Text m_messageText;
 
+    sf::Text m_inputLabel;
+    sf::RectangleShape m_inputBox;
+    sf::Text m_inputText;
+    std::string m_input;
+
+
+    void createCustomGraph(int v, int e);
+    bool parseInput(int& v, int& e) const;
     // Các nút điều khiển
+    Button m_createRandomButton;
     Button m_createButton;
     Button m_runButton;
     Button m_prevButton;
     Button m_nextButton;
     Button m_backButton;
+    // Thêm biến để kiểm tra xem ô nhập liệu có đang được click (focus) hay không
+    bool m_isInputFocused; 
+
+    // Thêm nút Create Random riêng
 
     // Dữ liệu thuật toán
     Graph m_graph;
