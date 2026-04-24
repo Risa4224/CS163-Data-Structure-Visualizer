@@ -1,436 +1,412 @@
 #include "HashTableScreen.hpp"
 #include <cstdlib>
 #include <ctime>
-#include <sstream>
-#include <iomanip>
+#include <algorithm>
+#include <cmath>
 
-HashTableScreen::HashTableScreen(const sf::Font& font)
+HashTableScreen::HashTableScreen(const sf::Font &font)
     : m_font(font),
-
-      m_topInfoText(font, "", 24),
+      m_topInfoText(font, "Hash Table (Chaining)", 24),
       m_messageText(font, "Ready.", 20),
-      m_inputLabel(font, "Value", 20),
       m_inputText(font, "", 24),
-
-      m_createButton({190.f, 46.f}, {56.f, 300.f}, font, "Create(M, N)", 22),
+      m_speedText(font, "1.0x", 18),
+      m_createButton({190.f, 46.f}, {56.f, 300.f}, font, "Create", 22),
       m_searchButton({190.f, 46.f}, {56.f, 352.f}, font, "Search(v)", 22),
       m_insertButton({190.f, 46.f}, {56.f, 404.f}, font, "Insert(v)", 22),
       m_removeButton({190.f, 46.f}, {56.f, 456.f}, font, "Remove(v)", 22),
-      m_backButton({190.f, 46.f}, {56.f, 508.f}, font, "Back", 22)
+      m_backButton({190.f, 46.f}, {56.f, 508.f}, font, "Back", 22),
+      m_prevButton({60.f, 40.f}, {450.f, 630.f}, font, "<<", 20),
+      m_playPauseButton({80.f, 40.f}, {520.f, 630.f}, font, "Play", 20),
+      m_nextButton({60.f, 40.f}, {610.f, 630.f}, font, ">>", 20)
 {
     std::srand(static_cast<unsigned>(std::time(nullptr)));
 
-    createTable();
-
     m_background.setSize({1280.f, 720.f});
-    m_background.setPosition({0.f, 0.f});
-    m_background.setFillColor(sf::Color(212, 212, 212));
+    m_background.setFillColor(sf::Color(240, 240, 240));
+    m_leftBar.setSize({250.f, 720.f});
+    m_leftBar.setFillColor(sf::Color(45, 52, 54));
 
-    m_leftBar.setSize({52.f, 720.f});
-    m_leftBar.setPosition({0.f, 0.f});
-    m_leftBar.setFillColor(sf::Color(223, 84, 58));
-
-    m_menuPanel.setSize({210.f, 270.f});
-    m_menuPanel.setPosition({52.f, 290.f});
-    m_menuPanel.setFillColor(sf::Color(223, 84, 58));
-
-    m_inputLabel.setFillColor(sf::Color::Black);
-    m_inputLabel.setPosition({56.f, 150.f});
-
-    m_inputBox.setSize({190.f, 50.f});
+    m_inputBox.setSize({190.f, 40.f});
     m_inputBox.setPosition({56.f, 180.f});
     m_inputBox.setFillColor(sf::Color::White);
-    m_inputBox.setOutlineThickness(2.f);
-    m_inputBox.setOutlineColor(sf::Color(80, 80, 80));
 
     m_inputText.setFillColor(sf::Color::Black);
-    m_inputText.setPosition({70.f, 190.f});
-
+    m_inputText.setPosition({65.f, 185.f});
+    m_topInfoText.setPosition({300.f, 20.f});
     m_topInfoText.setFillColor(sf::Color::Black);
-    centerTextX(m_topInfoText, 700.f, 24.f);
 
-    m_messageText.setFillColor(sf::Color(120, 20, 20));
-    centerTextX(m_messageText, 700.f, 690.f);
+    m_sliderBar.setSize({150.f, 6.f});
+    m_sliderBar.setPosition({800.f, 650.f});
+    m_sliderBar.setFillColor(sf::Color(160, 160, 160));
 
-    auto styleMenuButton = [](Button& b)
-    {
-        b.setNormalColor(sf::Color(223, 84, 58));
-        b.setHoverColor(sf::Color(235, 108, 86));
-        b.setSelectedColor(sf::Color(190, 65, 45));
-    };
+    m_sliderKnob.setRadius(10.f);
+    m_sliderKnob.setFillColor(sf::Color(52, 152, 219));
+    m_sliderKnob.setOrigin({10.f, 10.f});
+    m_sliderKnob.setPosition({837.5f, 653.f});
+    m_speedText.setPosition({960.f, 640.f});
+    m_speedText.setFillColor(sf::Color::Black);
 
-    styleMenuButton(m_createButton);
-    styleMenuButton(m_searchButton);
-    styleMenuButton(m_insertButton);
-    styleMenuButton(m_removeButton);
-    styleMenuButton(m_backButton);
-
-    updateTopInfo();
-}
-
-void HashTableScreen::centerTextX(sf::Text& text, float x, float y)
-{
-    sf::FloatRect bounds = text.getLocalBounds();
-    text.setOrigin({
-        bounds.position.x + bounds.size.x / 2.f,
-        bounds.position.y + bounds.size.y / 2.f
-    });
-    text.setPosition({x, y});
+    createTable();
 }
 
 int HashTableScreen::hashFunction(int value) const
 {
-    int mod = value % FIXED_N;
-    if (mod < 0)
-        mod += FIXED_N;
-    return mod;
-}
-
-bool HashTableScreen::parseInput(int& value) const
-{
-    if (m_input.empty())
-        return false;
-
-    try
-    {
-        value = std::stoi(m_input);
-        return true;
-    }
-    catch (...)
-    {
-        return false;
-    }
-}
-
-void HashTableScreen::appendDigit(char digit)
-{
-    if (m_input.size() < 9)
-        m_input += digit;
-}
-
-void HashTableScreen::removeLastDigit()
-{
-    if (!m_input.empty())
-        m_input.pop_back();
-}
-
-void HashTableScreen::clearInput()
-{
-    m_input.clear();
+    int res = value % FIXED_N;
+    return (res < 0) ? res + FIXED_N : res;
 }
 
 void HashTableScreen::createTable()
 {
-    m_table.clear();
-    m_table.resize(FIXED_N);
+    m_table.assign(FIXED_N, std::vector<int>());
+    m_steps.clear();
+    m_currentStep = 0;
+    m_isPlaying = false;
     m_elementCount = 0;
-
-    int M = 20;
-    for (int i = 0; i < M; ++i)
+    m_input.clear();
+    for (int i = 0; i < 5; ++i)
     {
-        int value = std::rand() % 100;
-        insertValue(value);
+        int val = std::rand() % 100;
+        m_table[hashFunction(val)].push_back(val);
+        m_elementCount++;
     }
-
-    m_message = "Created random hash table";
-    updateTopInfo();
 }
 
-bool HashTableScreen::searchValue(int value, int& bucketIndex, int& posIndex) const
+void HashTableScreen::addStep(const std::string &msg, int line, int bucket, int node)
 {
-    bucketIndex = hashFunction(value);
-    const auto& chain = m_table[bucketIndex];
+    AnimationStep s;
+    s.message = msg;
+    s.highlightLine = line;
+    s.tableSnapshot = m_table;
+    s.activeBucket = bucket;
+    s.activeNode = node;
+    m_steps.push_back(s);
+}
 
-    for (int i = 0; i < static_cast<int>(chain.size()); ++i)
+void HashTableScreen::setupPseudocode(const std::string &action)
+{
+    m_pseudocode.clear();
+    if (action == "Search")
+    {
+        m_pseudocode = {"idx = v % 10;", "bucket = table[idx];", "for each node in bucket:", "  if (node == v) return FOUND;", "return NOT_FOUND;"};
+    }
+    else if (action == "Insert")
+    {
+        m_pseudocode = {"idx = v % 10;", "if (exists(v)) return;", "table[idx].push_back(v);", "elementCount++;"};
+    }
+    else if (action == "Remove")
+    {
+        m_pseudocode = {"idx = v % 10;", "if (!exists(v)) return;", "table[idx].erase(v);", "elementCount--;"};
+    }
+}
+
+void HashTableScreen::prepareSearch(int value)
+{
+    m_steps.clear();
+    m_currentStep = 0;
+    setupPseudocode("Search");
+    int idx = hashFunction(value);
+    addStep("Hashing: " + std::to_string(value) + " % 10 = " + std::to_string(idx), 0, idx);
+    for (int i = 0; i < (int)m_table[idx].size(); ++i)
+    {
+        addStep("Checking node value: " + std::to_string(m_table[idx][i]), 2, idx, i);
+        if (m_table[idx][i] == value)
+        {
+            addStep("Match found!", 3, idx, i);
+            return;
+        }
+    }
+    addStep("Value not found.", 4, idx);
+}
+
+void HashTableScreen::prepareInsert(int value)
+{
+    m_steps.clear();
+    m_currentStep = 0;
+    setupPseudocode("Insert");
+    int idx = hashFunction(value);
+    addStep("Hashing " + std::to_string(value), 0, idx);
+    for (int i = 0; i < (int)m_table[idx].size(); ++i)
+    {
+        if (m_table[idx][i] == value)
+        {
+            addStep("Value already exists. Skip.", 1, idx, i);
+            return;
+        }
+    }
+    m_table[idx].push_back(value);
+    addStep("Inserting " + std::to_string(value), 2, idx, (int)m_table[idx].size() - 1);
+    m_elementCount++;
+}
+
+void HashTableScreen::prepareRemove(int value)
+{
+    m_steps.clear();
+    m_currentStep = 0;
+    setupPseudocode("Remove");
+    int idx = hashFunction(value);
+    addStep("Hashing " + std::to_string(value), 0, idx);
+    auto &chain = m_table[idx];
+    for (int i = 0; i < (int)chain.size(); ++i)
     {
         if (chain[i] == value)
         {
-            posIndex = i;
-            return true;
+            addStep("Found node. Removing...", 2, idx, i);
+            chain.erase(chain.begin() + i);
+            addStep("Removed successfully.", 3, idx);
+            m_elementCount--;
+            return;
         }
     }
-
-    posIndex = -1;
-    return false;
+    addStep("Value not found.", 1, idx);
 }
 
-bool HashTableScreen::insertValue(int value)
-{
-    int bucketIndex = -1;
-    int posIndex = -1;
-
-    if (searchValue(value, bucketIndex, posIndex))
-    {
-        m_message = "Value " + std::to_string(value) +
-                    " already exists in bucket " + std::to_string(bucketIndex);
-        return false;
-    }
-
-    bucketIndex = hashFunction(value);
-    m_table[bucketIndex].push_back(value);
-    ++m_elementCount;
-
-    m_message = "Inserted " + std::to_string(value) +
-                " into bucket " + std::to_string(bucketIndex);
-    updateTopInfo();
-    return true;
-}
-
-bool HashTableScreen::removeValue(int value)
-{
-    int bucketIndex = -1;
-    int posIndex = -1;
-
-    if (!searchValue(value, bucketIndex, posIndex))
-    {
-        m_message = "Value " + std::to_string(value) + " not found";
-        return false;
-    }
-
-    auto& chain = m_table[bucketIndex];
-    chain.erase(chain.begin() + posIndex);
-    --m_elementCount;
-
-    m_message = "Removed " + std::to_string(value) +
-                " from bucket " + std::to_string(bucketIndex);
-    updateTopInfo();
-    return true;
-}
-
-float HashTableScreen::getAlpha() const
-{
-    return static_cast<float>(m_elementCount) / static_cast<float>(FIXED_N);
-}
-
-void HashTableScreen::updateTopInfo()
-{
-    std::ostringstream oss;
-    oss << "N=" << FIXED_N
-        << ", M=" << m_elementCount
-        << ", alpha=" << std::fixed << std::setprecision(1) << getAlpha();
-
-    m_topInfoText.setString(oss.str());
-    centerTextX(m_topInfoText, 700.f, 24.f);
-}
-
-void HashTableScreen::handleEvent(const sf::Event& event, const sf::RenderWindow& window, bool& goBack)
+void HashTableScreen::handleEvent(const sf::Event &event, sf::RenderWindow &window, bool &goBack)
 {
     sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
 
-    if (event.is<sf::Event::MouseMoved>())
+    // Update hover states cho buttons
+    m_createButton.update(mousePos);
+    m_searchButton.update(mousePos);
+    m_insertButton.update(mousePos);
+    m_removeButton.update(mousePos);
+    m_backButton.update(mousePos);
+    m_prevButton.update(mousePos);
+    m_playPauseButton.update(mousePos);
+    m_nextButton.update(mousePos);
+
+    // 1. Xử lý nhập liệu văn bản
+    if (const auto *textEvent = event.getIf<sf::Event::TextEntered>())
     {
-        m_createButton.update(mousePos);
-        m_searchButton.update(mousePos);
-        m_insertButton.update(mousePos);
-        m_removeButton.update(mousePos);
-        m_backButton.update(mousePos);
+        if (textEvent->unicode >= '0' && textEvent->unicode <= '9')
+            m_input += static_cast<char>(textEvent->unicode);
+        else if (textEvent->unicode == 8 && !m_input.empty())
+            m_input.pop_back();
     }
 
-    if (const auto* textEvent = event.getIf<sf::Event::TextEntered>())
-    {
-        char c = static_cast<char>(textEvent->unicode);
-
-        if (c >= '0' && c <= '9')
-        {
-            appendDigit(c);
-        }
-        else if (textEvent->unicode == 8)
-        {
-            removeLastDigit();
-        }
-        else if (textEvent->unicode == 13)
-        {
-            int value;
-            if (parseInput(value))
-            {
-                insertValue(value);
-                clearInput();
-            }
-        }
-    }
-
-    if (const auto* mousePressed = event.getIf<sf::Event::MouseButtonPressed>())
+    // 2. Xử lý click chuột
+    if (const auto *mousePressed = event.getIf<sf::Event::MouseButtonPressed>())
     {
         if (mousePressed->button != sf::Mouse::Button::Left)
             return;
 
-        int value = 0;
-
         if (m_backButton.contains(mousePos))
-        {
             goBack = true;
-            return;
-        }
-
         if (m_createButton.contains(mousePos))
-        {
             createTable();
-            clearInput();
-            return;
+
+        // Xử lý các lệnh Search/Insert/Remove
+        int val;
+        bool ok = false;
+        try
+        {
+            if (!m_input.empty())
+            {
+                val = std::stoi(m_input);
+                ok = true;
+            }
+        }
+        catch (...)
+        {
+            ok = false;
         }
 
-        if (m_insertButton.contains(mousePos))
+        if (ok)
         {
-            if (parseInput(value))
+            if (m_searchButton.contains(mousePos))
+                prepareSearch(val);
+            if (m_insertButton.contains(mousePos))
+                prepareInsert(val);
+            if (m_removeButton.contains(mousePos))
+                prepareRemove(val);
+
+            if (!m_steps.empty())
             {
-                insertValue(value);
-                clearInput();
+                m_input.clear();
+                m_currentStep = 0; // Reset về bước đầu
+                m_isPlaying = true;
+                m_playPauseButton.setText("Pause");
+                m_autoTimer.restart();
             }
-            else
-            {
-                m_message = "Please enter a valid number";
-            }
-            return;
         }
 
-        if (m_searchButton.contains(mousePos))
+        // ĐIỀU CHỈNH: Nút Play/Pause
+        if (m_playPauseButton.contains(mousePos) && !m_steps.empty())
         {
-            if (parseInput(value))
-            {
-                int bucketIndex = -1;
-                int posIndex = -1;
-
-                if (searchValue(value, bucketIndex, posIndex))
-                {
-                    m_message = "Found " + std::to_string(value) +
-                                " in bucket " + std::to_string(bucketIndex);
-                }
-                else
-                {
-                    m_message = "Value " + std::to_string(value) + " not found";
-                }
-
-                clearInput();
-            }
-            else
-            {
-                m_message = "Please enter a valid number";
-            }
-            return;
+            m_isPlaying = !m_isPlaying;
+            m_playPauseButton.setText(m_isPlaying ? "Pause" : "Play");
+            if (m_isPlaying)
+                m_autoTimer.restart(); // Restart timer khi tiếp tục
         }
 
-        if (m_removeButton.contains(mousePos))
+        // Nút Next/Prev
+        if (m_nextButton.contains(mousePos) && m_currentStep < (int)m_steps.size() - 1)
         {
-            if (parseInput(value))
-            {
-                removeValue(value);
-                clearInput();
-            }
-            else
-            {
-                m_message = "Please enter a valid number";
-            }
-            return;
+            m_currentStep++;
+            m_isPlaying = false;
+            m_playPauseButton.setText("Play");
+        }
+        if (m_prevButton.contains(mousePos) && m_currentStep > 0)
+        {
+            m_currentStep--;
+            m_isPlaying = false;
+            m_playPauseButton.setText("Play");
+        }
+    }
+
+    // 3. XỬ LÝ THANH TRƯỢT (SPEED SLIDER)
+    // Cho phép kéo thả mượt mà bằng cách kiểm tra chuột trái đang đè
+    if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left))
+    {
+        if (m_sliderBar.getGlobalBounds().contains(mousePos) || m_sliderKnob.getGlobalBounds().contains(mousePos))
+        {
+            float startX = m_sliderBar.getPosition().x;
+            float width = m_sliderBar.getSize().x;
+            float relX = std::clamp(mousePos.x - startX, 0.f, width);
+            float ratio = relX / width;
+
+            m_sliderKnob.setPosition({startX + relX, m_sliderKnob.getPosition().y});
+
+            // Speed từ 0.5x đến 4.0x
+            m_speedScale = 0.5f + ratio * 3.5f;
+
+            // Format text hiển thị (vd: 1.2x)
+            std::string speedStr = std::to_string(m_speedScale);
+            m_speedText.setString(speedStr.substr(0, speedStr.find('.') + 2) + "x");
         }
     }
 }
 
-void HashTableScreen::update(const sf::RenderWindow& window)
+void HashTableScreen::update(const sf::RenderWindow &window)
 {
-    (void)window;
-
-    if (m_input.empty())
-        m_inputText.setString("...");
-    else
-        m_inputText.setString(m_input);
-
-    m_messageText.setString(m_message);
-    centerTextX(m_messageText, 700.f, 690.f);
-
-    updateTopInfo();
+    m_inputText.setString(m_input);
+    if (m_isPlaying && !m_steps.empty())
+    {
+        if (m_autoTimer.getElapsedTime().asSeconds() >= (1.0f / m_speedScale))
+        {
+            if (m_currentStep < (int)m_steps.size() - 1)
+            {
+                m_currentStep++;
+                m_autoTimer.restart();
+            }
+            else
+            {
+                m_isPlaying = false;
+                m_playPauseButton.setText("Play"); // Cập nhật text nút khi kết thúc
+            }
+        }
+    }
 }
 
-void HashTableScreen::draw(sf::RenderWindow& window) const
+void HashTableScreen::draw(sf::RenderWindow &window) const
 {
     window.draw(m_background);
     window.draw(m_leftBar);
-    window.draw(m_menuPanel);
-
-    sf::Text arrow(m_font, "<", 34);
-    arrow.setFillColor(sf::Color::White);
-    arrow.setPosition({18.f, 500.f});
-    window.draw(arrow);
-
-    window.draw(m_topInfoText);
-
-    window.draw(m_inputLabel);
     window.draw(m_inputBox);
     window.draw(m_inputText);
-
+    window.draw(m_topInfoText);
     m_createButton.draw(window);
     m_searchButton.draw(window);
     m_insertButton.draw(window);
     m_removeButton.draw(window);
     m_backButton.draw(window);
 
-    float startX = 300.f;
-    float topY = 90.f;
-    float columnGap = 90.f;
+    const auto &snap = m_steps.empty() ? m_table : m_steps[m_currentStep].tableSnapshot;
+    int actB = m_steps.empty() ? -1 : m_steps[m_currentStep].activeBucket;
+    int actN = m_steps.empty() ? -1 : m_steps[m_currentStep].activeNode;
+
+    float startX = 300.f, topY = 120.f, bucketSpace = 85.f, nodeH = 38.f, nodeW = 56.f, gap = 22.f;
 
     for (int i = 0; i < FIXED_N; ++i)
     {
-        float x = startX + i * columnGap;
+        float x = startX + i * bucketSpace;
+        sf::RectangleShape head({nodeW, nodeH});
+        head.setPosition({x, topY});
+        head.setOutlineThickness(2.f);
+        head.setOutlineColor(sf::Color(60, 60, 60));
+        head.setFillColor(actB == i ? sf::Color::Yellow : sf::Color::White);
+        window.draw(head);
 
-        // index: đưa lên trên ô H
-        sf::Text indexText(m_font, std::to_string(i), 18);
-        indexText.setFillColor(sf::Color::Red);
-        indexText.setPosition({x + 14.f, topY - 24.f});
-        window.draw(indexText);
-
-        // H box
-        sf::RectangleShape hashBox({42.f, 34.f});
-        hashBox.setPosition({x, topY});
-        hashBox.setFillColor(sf::Color(235, 235, 235));
-        hashBox.setOutlineThickness(2.f);
-        hashBox.setOutlineColor(sf::Color(60, 60, 60));
-        window.draw(hashBox);
-
-        sf::Text hashText(m_font, "H", 22);
-        hashText.setFillColor(sf::Color::Black);
-        hashText.setPosition({x + 12.f, topY + 4.f});
-        window.draw(hashText);
-
-        sf::Vertex line[2];
-        line[0].position = {x + 21.f, topY + 34.f};
-        line[0].color = sf::Color(60, 60, 60);
-        line[1].position = {x + 21.f, topY + 52.f};
-        line[1].color = sf::Color(60, 60, 60);
-        window.draw(line, 2, sf::PrimitiveType::Lines);
-
-        const auto& chain = m_table[i];
-        for (int j = 0; j < static_cast<int>(chain.size()); ++j)
+        for (int j = 0; j < (int)snap[i].size(); ++j)
         {
-            float nodeY = topY + 60.f + j * 58.f;
+            float nodeY = topY + nodeH + gap + j * (nodeH + gap);
+            sf::Vertex line[2];
+            line[0].position = {x + nodeW / 2.f, (j == 0 ? topY + nodeH : nodeY - gap)};
+            line[0].color = sf::Color(60, 60, 60);
+            line[1].position = {x + nodeW / 2.f, nodeY};
+            line[1].color = sf::Color(60, 60, 60);
+            window.draw(line, 2, sf::PrimitiveType::Lines);
 
-            sf::RectangleShape node({56.f, 38.f});
-            node.setPosition({x - 7.f, nodeY});
-            node.setFillColor(sf::Color(245, 245, 245));
-            node.setOutlineThickness(2.f);
-            node.setOutlineColor(sf::Color(60, 60, 60));
-            window.draw(node);
+            sf::RectangleShape box({nodeW, nodeH});
+            box.setPosition({x, nodeY});
+            box.setOutlineThickness(2.f);
+            box.setOutlineColor(sf::Color(60, 60, 60));
+            box.setFillColor((actB == i && actN == j) ? sf::Color::Cyan : sf::Color(245, 245, 245));
+            window.draw(box);
 
-            sf::Text valueText(m_font, std::to_string(chain[j]), 22);
-            valueText.setFillColor(sf::Color::Black);
-
-            sf::FloatRect tb = valueText.getLocalBounds();
-            valueText.setOrigin({
-                tb.position.x + tb.size.x / 2.f,
-                tb.position.y + tb.size.y / 2.f
-            });
-            valueText.setPosition({x + 21.f, nodeY + 19.f});
-            window.draw(valueText);
-
-            if (j < static_cast<int>(chain.size()) - 1)
-            {
-                sf::Vertex vline[2];
-                vline[0].position = {x + 21.f, nodeY + 38.f};
-                vline[0].color = sf::Color(60, 60, 60);
-                vline[1].position = {x + 21.f, nodeY + 58.f};
-                vline[1].color = sf::Color(60, 60, 60);
-                window.draw(vline, 2, sf::PrimitiveType::Lines);
-            }
+            sf::Text val(m_font, std::to_string(snap[i][j]), 18);
+            val.setFillColor(sf::Color::Black);
+            sf::FloatRect b = val.getLocalBounds();
+            val.setOrigin({b.position.x + b.size.x / 2.f, b.position.y + b.size.y / 2.f});
+            val.setPosition({x + nodeW / 2.f, nodeY + nodeH / 2.f});
+            window.draw(val);
         }
     }
 
-    window.draw(m_messageText);
+    if (!m_steps.empty())
+    {
+        m_prevButton.draw(window);
+        m_playPauseButton.draw(window);
+        m_nextButton.draw(window);
+        window.draw(m_sliderBar);
+        window.draw(m_sliderKnob);
+        window.draw(m_speedText);
+        sf::Text msg(m_font, m_steps[m_currentStep].message, 20);
+        msg.setPosition({300.f, 680.f});
+        msg.setFillColor(sf::Color(45, 52, 54));
+        window.draw(msg);
+
+        // --- PHẦN VẼ KHUNG PSEUDOCODE ĐÃ ĐIỀU CHỈNH ---
+        float pcX = 950.f;      // Giữ nguyên hoặc xê dịch nhẹ sang trái nếu cần
+        float pcY = 400.f;      // ĐẨY XUỐNG DƯỚI (thay vì 200.f) để không che bảng
+        float pcWidth = 300.f;  // Tăng nhẹ chiều rộng để chữ không bị sát lề
+        float pcHeight = 220.f; // Giảm chiều cao cho vừa vặn với số dòng code
+
+        // 1. Vẽ nền cho khung Pseudocode
+        sf::RectangleShape pcBox({pcWidth, pcHeight});
+        pcBox.setPosition({pcX, pcY});
+        pcBox.setFillColor(sf::Color(255, 255, 255, 230)); // Tăng độ đậm nền một chút
+        pcBox.setOutlineThickness(2.f);
+        pcBox.setOutlineColor(sf::Color(45, 52, 54));
+        window.draw(pcBox);
+
+        // 2. Vẽ dải màu tiêu đề
+        sf::RectangleShape pcHeader({pcWidth, 30.f});
+        pcHeader.setPosition({pcX, pcY});
+        pcHeader.setFillColor(sf::Color(45, 52, 54));
+        window.draw(pcHeader);
+
+        // 3. Vẽ chữ "Pseudocode" tiêu đề
+        sf::Text pcTitle(m_font, "Pseudocode", 18);
+        pcTitle.setPosition({pcX + 10.f, pcY + 3.f});
+        pcTitle.setFillColor(sf::Color::White);
+        window.draw(pcTitle);
+
+        // 4. Vẽ các dòng code
+        for (size_t i = 0; i < m_pseudocode.size(); ++i)
+        {
+            sf::Text code(m_font, m_pseudocode[i], 16); // Giảm size chữ xuống 16 cho gọn
+            code.setPosition({pcX + 15.f, pcY + 45.f + i * 25.f});
+
+            if (m_steps[m_currentStep].highlightLine == (int)i)
+            {
+                code.setFillColor(sf::Color::Red);
+                code.setStyle(sf::Text::Bold);
+            }
+            else
+            {
+                code.setFillColor(sf::Color::Black);
+            }
+            window.draw(code);
+        }
+    }
 }
