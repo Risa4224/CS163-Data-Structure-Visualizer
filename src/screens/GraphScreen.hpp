@@ -18,6 +18,7 @@ private:
     void runKruskal();
     void nextStep();
     void prevStep();
+    
 
 
     sf::Font m_font;
@@ -57,4 +58,19 @@ private:
     bool m_isAutoRunning;     
     sf::Clock m_autoRunClock; 
     float m_stepDelay;        
+
+    sf::Text m_speedLabel;
+    sf::RectangleShape m_sliderTrack; // Đường ray của thanh trượt
+    sf::RectangleShape m_sliderKnob;  // Cục núm để kéo
+    bool m_isDraggingSlider;
+
+    struct CodeToken {
+        std::string text;
+        sf::Color color;
+        CodeToken(std::string t, sf::Color c) : text(t), color(c) {} 
+    };
+
+    // 2. Khai báo mảng 2 chiều
+    std::vector<std::vector<CodeToken>> m_kruskalCode;
+
 };
