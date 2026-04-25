@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
+#include <iomanip>
 
 GraphScreen::GraphScreen(const sf::Font& font)
     : m_font(font),
@@ -23,9 +24,42 @@ GraphScreen::GraphScreen(const sf::Font& font)
       m_currentStateIndex(0),
       m_hasResult(false),
       m_isAutoRunning(false),
-      m_stepDelay(1.0f)
+      m_stepDelay(1.0f),
+      m_speedLabel(font, "Speed: 1.0x", 18), 
+      m_isDraggingSlider(false)
 {
     std::srand(static_cast<unsigned>(std::time(nullptr)));
+
+    // --- SETUP MÀU SẮC VS CODE DARK THEME ---
+    sf::Color kw(197, 134, 192);   // Màu hồng (Keyword)
+    sf::Color fn(220, 220, 170);   // Màu vàng (Function)
+    sf::Color vr(156, 220, 254);   // Màu xanh dương nhạt (Variable)
+    sf::Color punc(212, 212, 212); // Màu xám sáng (Punctuation)
+    sf::Color ty(78, 201, 176);    // Màu xanh ngọc (Type)
+
+    // Dùng explicit CodeToken() để tránh lỗi initializer list của MSVC
+    m_kruskalCode = {
+        // Dòng 0: std::sort(edges.begin(), edges.end());
+        { CodeToken("std", ty), CodeToken("::", punc), CodeToken("sort", fn), CodeToken("(", punc), CodeToken("edges", vr), CodeToken(".", punc), CodeToken("begin", fn), CodeToken("(), ", punc), CodeToken("edges", vr), CodeToken(".", punc), CodeToken("end", fn), CodeToken("());", punc) },
+        
+        // Dòng 1: for (const auto& edge : edges) {
+        { CodeToken("for", kw), CodeToken(" (", punc), CodeToken("const auto", kw), CodeToken("& ", punc), CodeToken("edge", vr), CodeToken(" : ", punc), CodeToken("edges", vr), CodeToken(") {", punc) },
+        
+        // Dòng 2:     if (findSet(edge.u) != findSet(edge.v)) {
+        { CodeToken("    if", kw), CodeToken(" (", punc), CodeToken("findSet", fn), CodeToken("(", punc), CodeToken("edge", vr), CodeToken(".", punc), CodeToken("u", vr), CodeToken(") != ", punc), CodeToken("findSet", fn), CodeToken("(", punc), CodeToken("edge", vr), CodeToken(".", punc), CodeToken("v", vr), CodeToken(")) {", punc) },
+        
+        // Dòng 3:         mst.push_back(edge);
+        { CodeToken("        mst", vr), CodeToken(".", punc), CodeToken("push_back", fn), CodeToken("(", punc), CodeToken("edge", vr), CodeToken(");", punc) },
+        
+        // Dòng 4:         unionSets(edge.u, edge.v);
+        { CodeToken("        unionSets", fn), CodeToken("(", punc), CodeToken("edge", vr), CodeToken(".", punc), CodeToken("u", vr), CodeToken(", ", punc), CodeToken("edge", vr), CodeToken(".", punc), CodeToken("v", vr), CodeToken(");", punc) },
+        
+        // Dòng 5:     }
+        { CodeToken("    }", punc) },
+        
+        // Dòng 6: }
+        { CodeToken("}", punc) }
+    };
 
     m_background.setSize({1280.f, 720.f});
     m_background.setFillColor(sf::Color(212, 212, 212));
@@ -53,6 +87,25 @@ GraphScreen::GraphScreen(const sf::Font& font)
     centerTextX(m_topInfoText, 700.f, 24.f);
 
     m_messageText.setFillColor(sf::Color(120, 20, 20));
+
+    // --- SETUP GIAO DIỆN THANH TRƯỢT TỐC ĐỘ ---
+    m_speedLabel.setFillColor(sf::Color::White);
+    m_speedLabel.setStyle(sf::Text::Bold);    // 
+    m_speedLabel.setPosition({60.f, 610.f});  // 
+
+    m_sliderTrack.setSize({160.f, 8.f});
+    m_sliderTrack.setPosition({70.f, 645.f});
+    m_sliderTrack.setFillColor(sf::Color(150, 150, 150));
+    m_sliderTrack.setOutlineThickness(1.f);
+    m_sliderTrack.setOutlineColor(sf::Color::Black);
+
+    m_sliderKnob.setSize({14.f, 24.f});
+    m_sliderKnob.setOrigin({7.f, 12.f}); // Đặt tâm vào giữa cục núm
+    m_sliderKnob.setPosition({150.f, 649.f}); // Bắt đầu ở giữa thanh trượt (1.0x)
+    m_sliderKnob.setFillColor(sf::Color(255, 255, 255)); 
+    m_sliderKnob.setOutlineThickness(2.f);
+    m_sliderKnob.setOutlineColor(sf::Color(80, 80, 80));
+
     centerTextX(m_messageText, 700.f, 690.f);
 
     auto styleMenuButton = [](Button& b) {
@@ -93,7 +146,7 @@ void GraphScreen::createCustomGraph(int v, int e) {
     if (e < 0) e = 0;
 
     // 2. Tạo đỉnh
-    float centerX = 750.f;
+    float centerX = 550.f;
     float centerY = 360.f;
     float radius = 220.f;
     for (int i = 0; i < v; ++i) {
@@ -141,7 +194,7 @@ void GraphScreen::createRandomGraph() {
     m_isAutoRunning = false;
 
     int numNodes = (std::rand() % 7) + 4;
-    float centerX = 750.f;
+    float centerX = 550.f;
     float centerY = 360.f;
     float radius = 200.f;
 
@@ -200,6 +253,12 @@ void GraphScreen::handleEvent(const sf::Event& event, const sf::RenderWindow& wi
         m_prevButton.update(mousePos);
         m_nextButton.update(mousePos);
         m_backButton.update(mousePos);
+
+        if (m_isDraggingSlider) {
+            // Giới hạn x không vượt quá 2 đầu thanh ray (70 đến 230)
+            float newX = std::max(70.f, std::min(mousePos.x, 230.f)); 
+            m_sliderKnob.setPosition({newX, 634.f});
+        }
     }
 
     // 2. LOGIC GÕ PHÍM
@@ -215,10 +274,24 @@ void GraphScreen::handleEvent(const sf::Event& event, const sf::RenderWindow& wi
     }
 
     // 3. LOGIC CLICK CHUỘT TRÁI (TẤT CẢ CHỨC NĂNG PHẢI NẰM TRONG NÀY)
+    // BẮT SỰ KIỆN THẢ CHUỘT LÀ DỪNG KÉO
+    if (const auto* mouseReleased = event.getIf<sf::Event::MouseButtonReleased>()) {
+        if (mouseReleased->button == sf::Mouse::Button::Left) {
+            m_isDraggingSlider = false;
+        }
+    }
+
     if (const auto* mousePressed = event.getIf<sf::Event::MouseButtonPressed>()) {
         if (mousePressed->button != sf::Mouse::Button::Left) return;
 
         // Focus hộp nhập
+        // Xử lý Click vào thanh trượt
+        if (m_sliderKnob.getGlobalBounds().contains(mousePos) || m_sliderTrack.getGlobalBounds().contains(mousePos)) {
+            m_isDraggingSlider = true;
+            float newX = std::max(70.f, std::min(mousePos.x, 230.f));
+            m_sliderKnob.setPosition({newX, 634.f});
+            return; 
+        }
         if (m_inputBox.getGlobalBounds().contains(mousePos)) {
             m_isInputFocused = true;
             m_inputBox.setOutlineColor(sf::Color(46, 204, 113));
@@ -278,6 +351,14 @@ void GraphScreen::update(const sf::RenderWindow& window) {
     centerTextX(m_messageText, 700.f, 690.f);
     m_inputText.setString(m_input.empty() ? "..." : m_input);
 
+    // THÊM ĐOẠN TÍNH TOÁN SPEED NÀY VÀO TRƯỚC LOGIC AUTO RUN:
+    float percent = (m_sliderKnob.getPosition().x - 70.f) / 160.f; // Ra số từ 0.0 đến 1.0
+    m_stepDelay = 2.0f - (percent * 1.8f); // Kéo trái = 2.0s (chậm), Kéo phải = 0.2s (nhanh)
+
+    std::stringstream ss;
+    ss << "Speed: " << std::fixed << std::setprecision(1) << (1.0f / m_stepDelay) << "x";
+    m_speedLabel.setString(ss.str());
+
     // Logic Tự Động Chạy
     if (m_isAutoRunning) {
         // Nếu đồng hồ đo được thời gian trôi qua lớn hơn delay (1 giây)
@@ -310,6 +391,8 @@ void GraphScreen::draw(sf::RenderWindow& window) const {
 
     window.draw(m_topInfoText);
     window.draw(m_messageText);
+
+    
 
     m_createRandomButton.draw(window);
     m_createButton.draw(window);
@@ -402,5 +485,62 @@ void GraphScreen::draw(sf::RenderWindow& window) const {
         idText.setOrigin({tb.position.x + tb.size.x / 2.f, tb.position.y + tb.size.y / 2.f});
         idText.setPosition({node.x, node.y});
         window.draw(idText);
+
+        // --- VẼ BẢNG CODE C++ (GIẢ LẬP VS CODE) ---
+        sf::RectangleShape codePanel({450.f, 320.f}); // Bảng rộng hơn một chút để chứa code C++
+        codePanel.setPosition({820.f, 50.f}); 
+        codePanel.setFillColor(sf::Color(30, 30, 30)); // Nền đen nhám VS Code
+        codePanel.setOutlineThickness(2.f);
+        codePanel.setOutlineColor(sf::Color(60, 60, 60));
+        window.draw(codePanel);
+
+        // Mẹo bắt từ khóa trong thông báo để biết đang chạy tới dòng nào
+        int activeLine = -1;
+        if (m_hasResult && !m_states.empty()) {
+            std::string msg = m_states[m_currentStateIndex].message;
+            
+            // Đã bổ sung cả chữ hoa lẫn chữ thường để bắt chính xác 100%
+            if (msg.find("Sort") != std::string::npos || msg.find("Sap xep") != std::string::npos || msg.find("sap xep") != std::string::npos) {
+                activeLine = 0; // Highlight dòng: std::sort...
+            } 
+            else if (msg.find("Xet") != std::string::npos || msg.find("xet") != std::string::npos || msg.find("xét") != std::string::npos) {
+                activeLine = 2; // Highlight dòng: if (findSet(edge.u) != findSet(edge.v))
+            } 
+            else if (msg.find("bo qua") != std::string::npos || msg.find("bỏ qua") != std::string::npos || msg.find("Bo qua") != std::string::npos) {
+                activeLine = 2; // Nếu chu trình thì vẫn bôi dòng if (vì đang kẹt ở bước kiểm tra if)
+            } 
+            else if (msg.find("Them") != std::string::npos || msg.find("them") != std::string::npos || msg.find("thêm") != std::string::npos) {
+                activeLine = 3; // Highlight dòng: push_back (dòng unionSets số 4 sẽ tự động chớp theo)
+            }
+        }
+        for (size_t i = 0; i < m_kruskalCode.size(); ++i) {
+            float currentX = 835.f; // Căn lề trái
+            float yPos = 70.f + i * 40.f;
+
+            // Bôi đen nền của dòng đang chạy (Highlight line)
+            // Nếu đang "Them" cạnh (dòng 3) thì bôi luôn dòng unionSets (dòng 4)
+            if ((int)i == activeLine || ((int)i == 4 && activeLine == 3)) { 
+                sf::RectangleShape highlightRect({420.f, 36.f});
+                highlightRect.setPosition({835.f - 5.f, yPos - 6.f});
+                highlightRect.setFillColor(sf::Color(58, 61, 65)); // Màu xám highlight trong VS Code
+                window.draw(highlightRect);
+            }
+
+            // Vẽ từng chữ có màu sắc nối tiếp nhau
+            for (const auto& token : m_kruskalCode[i]) {
+                sf::Text t(m_font, token.text, 18);
+                t.setPosition({currentX, yPos});
+                t.setFillColor(token.color);
+                window.draw(t);
+                
+                // SFML có hàm findCharacterPos cực xịn để tính chính xác tọa độ của chữ tiếp theo
+                currentX = t.findCharacterPos(token.text.size()).x; 
+            }
+        }
     }
+
+    window.draw(m_speedLabel);
+    window.draw(m_sliderTrack);
+    window.draw(m_sliderKnob);
+
 }
