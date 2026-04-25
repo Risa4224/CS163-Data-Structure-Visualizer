@@ -17,6 +17,7 @@ add_executable(main
     src/main.cpp
     src/ui/Button.cpp
     src/screens/MainMenuScreen.cpp
+    src/screens/LinkedListScreen.cpp
     src/screens/HashTableScreen.cpp
     AVLstructure.cpp
     src/screens/AVLTreeScreen.cpp

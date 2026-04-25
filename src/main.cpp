@@ -2,6 +2,7 @@
 #include <optional>
 
 #include "screens/MainMenuScreen.hpp"
+#include "screens/LinkedListScreen.hpp"
 #include "screens/HashTableScreen.hpp"
 #include "screens/AVLTreeScreen.hpp"
 #include "screens/GraphScreen.hpp"
@@ -9,6 +10,7 @@
 enum class AppScreen
 {
     MainMenu,
+    LinkedListVisualizer,
     HashTableVisualizer,
     AVLTreeVisualizer,
     GraphVisualizer // Thêm trạng thái màn hình cho Graph
@@ -22,6 +24,7 @@ int main()
     const sf::Font font("assets/fonts/roboto.ttf");
 
     MainMenuScreen mainMenuScreen(font);
+    LinkedListScreen linkedListScreen(font);
     HashTableScreen hashTableScreen(font);
     AVLTreeScreen avlTreeScreen(font);
     GraphScreen graphScreen(font);
@@ -56,7 +59,9 @@ int main()
 
                     if (requestedStructure.has_value())
                     {
-                        if (requestedStructure.value() == StructureType::HashTable)
+                        if (requestedStructure.value() == StructureType::LinkedList)
+                            currentScreen = AppScreen::LinkedListVisualizer;
+                        else if (requestedStructure.value() == StructureType::HashTable)
                         {
                             currentScreen = AppScreen::HashTableVisualizer;
                         }
@@ -68,6 +73,13 @@ int main()
                             currentScreen = AppScreen::GraphVisualizer;
                         }
                     }
+                }
+                else if (currentScreen == AppScreen::LinkedListVisualizer)
+                {
+                    bool goBack = false;
+                    linkedListScreen.handleEvent(*event, window, goBack);
+                    
+                    if (goBack) currentScreen = AppScreen::MainMenu;
                 }
                 else if (currentScreen == AppScreen::HashTableVisualizer)
                 {
@@ -99,6 +111,8 @@ int main()
         // Cập nhật logic (update)
         if (currentScreen == AppScreen::MainMenu)
             mainMenuScreen.update(window);
+        else if (currentScreen == AppScreen::LinkedListVisualizer)
+            linkedListScreen.update(window);
         else if (currentScreen == AppScreen::HashTableVisualizer)
             hashTableScreen.update(window);
         else if (currentScreen == AppScreen::AVLTreeVisualizer)
@@ -111,6 +125,8 @@ int main()
         // Vẽ lên màn hình (draw)
         if (currentScreen == AppScreen::MainMenu)
             mainMenuScreen.draw(window);
+        else if (currentScreen == AppScreen::LinkedListVisualizer)
+            linkedListScreen.draw(window);
         else if (currentScreen == AppScreen::HashTableVisualizer)
             hashTableScreen.draw(window);
         else if (currentScreen == AppScreen::AVLTreeVisualizer)
