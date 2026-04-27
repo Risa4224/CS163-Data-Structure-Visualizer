@@ -1,5 +1,6 @@
 #include "LinkedListScreen.hpp"
 #include <cstdlib>
+#include <functional>
 #include <iostream>
 #include <ctime>
 #include <string>
@@ -9,27 +10,253 @@
 /*
 Important parameters:
 Screen: 1280 x 720
-
-color pallete: hooooonestly considering zookster's, 
-that'll be dealt with later
-it would be REALLY funny if i went with full trans flag pallete
-
-Button background: 228, 168, 202 (mizuki)
-Overall background: 51, 170, 238 (ichika)
-Notice text: 238, 102, 102 (honami)
-border of position input box: 255, 221, 68 (saki)
-border of value input box: 187, 221, 34 (shiho)
 */
+
+LinkedListObject::LinkedListObject(const sf::Font& font)
+    : m_font(font)
+{
+    generate();
+}
+
+int LinkedListObject::generate()
+{
+    try 
+    {
+        list.clear();
+        for (int i=0;i<MAXN/2;i++)
+            list.push_back(rand()%MAXA);
+        return 0;
+    }
+    catch (int err) 
+    {
+        return -1;
+    }
+}
+
+int LinkedListObject::pushFront(int value)
+{
+    return insert(0, value);
+}
+
+int LinkedListObject::insert(int pos, int value)
+{
+    if (list.size() >= MAXN) return 1; // list reached limit
+    if (pos > list.size() || pos < 0) return 2; // invalid position
+
+    try 
+    {
+        list.push_back(0);
+        for (int i=(int)(list.size())-1;i>pos;i--)
+            list[i] = list[i-1];
+        list[pos] = value;
+        return 0;
+    }
+    catch (int err)
+    {
+        return -1;
+    }
+}
+
+int LinkedListObject::popFront()
+{
+    return remove(0);
+}
+
+int LinkedListObject::remove(int pos)
+{
+    if (list.size() == 0) return 1; // list is empty
+    if (pos >= list.size() || pos < 0) return 2; // invalid position 
+
+    try 
+    {
+        for (int i=pos;i+1<list.size();i++)
+            list[i] = list[i+1];
+        list.pop_back();
+        return 0;
+    }
+    catch (int err)
+    {
+        return -1;
+    }
+}
+
+int LinkedListObject::update(int pos, int value)
+{
+    if (pos >= list.size() || pos < 0) return 2; // invalid position 
+
+    try 
+    {
+        list[pos] = value;
+        return 0;
+    }
+    catch (int err)
+    {
+        return -1;
+    }
+}
+
+int LinkedListObject::searchPos(int pos, int &value)
+{
+    if (pos >= list.size() || pos < 0) return 2; // invalid position 
+
+    try 
+    {
+        value = list[pos];
+        return 0;
+    }
+    catch (int err)
+    {
+        return -1;
+    }
+}
+
+void LinkedListObject::draw(sf::RenderWindow& window, int x, int y) const
+{
+    // the part where we draw the linked list
+    if (list.size()==0) return;
+    sf::Text printLinkedList(m_font, "", 20);
+    std::string linkedListString = std::to_string(list[0]);
+    for (int i=1;i<list.size();i++)
+        linkedListString = linkedListString + ", " + std::to_string(list[i]);
+    printLinkedList.setString(linkedListString);
+    printLinkedList.setFillColor(sf::Color::Black);
+    // why do we have to rewrite the entire thing here????
+    // remember to investigate
+    sf::FloatRect bounds = printLinkedList.getLocalBounds();
+    printLinkedList.setOrigin({
+        bounds.position.x + bounds.size.x / 2.f,
+        bounds.position.y + bounds.size.y / 2.f
+    });
+    printLinkedList.setPosition({640, 360});
+    window.draw(printLinkedList);
+}
+
+InputBox::InputBox(InputBoxOptions options)
+    : m_font(options.font),
+    
+      isInputFocused(false),
+      input(""),
+      isInputLegal(options.func),
+
+      pos_x(options.x),
+      pos_y(options.y),
+      m_fontSize(options.fontSize),
+      m_label(options.label),
+
+      c_borderColor(options.borderColor),
+      c_borderColorFocused(options.borderColorFocused),
+      c_textColor(options.textColor),
+
+      m_inputLabel(m_font, m_label, m_fontSize),
+      m_inputText(m_font, "", m_fontSize)
+{
+    m_inputLabel.setFillColor(c_textColor);
+    m_inputLabel.setPosition({pos_x, pos_y});
+
+    m_inputBox.setSize({190.f, m_fontSize + 20.f});
+    m_inputBox.setPosition({pos_x, pos_y + m_fontSize + 5.f});
+    m_inputBox.setFillColor(sf::Color::White);
+    m_inputBox.setOutlineThickness(2.f);
+    m_inputBox.setOutlineColor(c_borderColor);
+
+    m_inputText.setFillColor(c_textColor);
+    m_inputText.setPosition({1080.f, pos_y + m_fontSize + 15.f});
+}
+
+int InputBox::appendChar(char c)
+{
+    // rewrite this later
+    if (c < '0' || c > '9') return 2; // not digit char
+    
+    // wait i never noticed the arbitrary limit here uh
+    int value;
+    std::string newInput = input + c;
+    if (!isInputLegal(value, newInput)) return 1; // not legal input
+    
+    input = newInput;
+    return 0;
+}
+
+int InputBox::removeLast()
+{
+    if (input.empty()) return 1; // nothing to pop
+    
+    input.pop_back();
+    return 0;
+}
+
+// not sure if i'll ever use this tbh
+int InputBox::clearInput()
+{
+    input.clear();
+    return 0;
+}
+
+int InputBox::getInput(int &value)
+{
+    if (!isInputLegal(value, input)) return 1; // bad input
+    return 0;
+}
+
+void InputBox::updateLabel(std::string newLabel)
+{
+    m_inputLabel.setString(newLabel);
+}
+
+int InputBox::handleEvent(const sf::Event& event, const sf::RenderWindow& window)
+{
+    // pos of mouse
+    sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
+    
+    //text input
+    if (const auto* textEvent = event.getIf<sf::Event::TextEntered>())
+    {
+        if (!isInputFocused) return 0;
+     
+        char c = static_cast<char>(textEvent->unicode);
+
+        if (textEvent->unicode == 8) return removeLast();
+        return appendChar(c);
+    }
+
+    if (const auto* mousePressed = event.getIf<sf::Event::MouseButtonPressed>())
+    {
+        if (m_inputBox.getGlobalBounds().contains(mousePos)) 
+        {
+            isInputFocused = true;
+            m_inputBox.setOutlineColor(c_borderColorFocused);
+        }
+        else
+        {
+            isInputFocused = false;
+            m_inputBox.setOutlineColor(c_borderColor);
+        }
+    }
+    return 0;
+}
+
+void InputBox::update()
+{
+    if (input.empty())
+        m_inputText.setString("...");
+    else
+        m_inputText.setString(input);
+}
+
+void InputBox::draw(sf::RenderWindow& window) const
+{
+    window.draw(m_inputLabel);
+    window.draw(m_inputBox);
+    window.draw(m_inputText);
+}
 
 LinkedListScreen::LinkedListScreen(const sf::Font& font)
     : m_font(font),
+      list(font),
 
+      // UI
       m_topInfoText(font, "Singly Linked List Visualizer", 32),
       m_messageText(font, "Ready.", 20),
-      m_inputPositionLabel(font, "Position", 20),
-      m_inputPositionText(font, "", 24),
-      m_inputValueLabel(font, "Value", 20),
-      m_inputValueText(font, "", 24),
 
       // i don't like hardcoding positions here
       // might return to this
@@ -55,35 +282,48 @@ LinkedListScreen::LinkedListScreen(const sf::Font& font)
     m_menuPanel.setPosition({0.f, 284.f});
     m_menuPanel.setFillColor(c_menuPanelColor);
 
+
     // position input box
-    m_inputPositionLabel.setFillColor(sf::Color::Black);
-    m_inputPositionLabel.setPosition({1080.f, 294.f});
+    std::function <bool(int&, std::string)> positionChecker =
+    [](int &value, std::string input) {
+        if (input.empty()) return false;
 
-    m_inputPositionBox.setSize({190.f, 50.f});
-    m_inputPositionBox.setPosition({1080.f, 324.f});
-    m_inputPositionBox.setFillColor(sf::Color::White);
-    m_inputPositionBox.setOutlineThickness(2.f);
-    m_inputPositionBox.setOutlineColor(c_positionBoxBorderColor);
-
-    m_inputPositionText.setFillColor(sf::Color::Black);
-    m_inputPositionText.setPosition({1080.f, 334.f});
+        try
+        {
+            value = std::stoi(input);
+            return (value >= 0  && value <= MAXN);
+        }
+        catch (...)
+        {
+            return false;
+        }
+    };
+    InputBoxOptions positionBoxOptions(font, positionChecker, "Position", 1080.f, 294.f);
+    positionBoxOptions.borderColor = c_positionBoxBorderColor;
+    positionBoxOptions.borderColorFocused = c_highlightColor;
+    m_inputPosition.emplace(positionBoxOptions);
 
     // value input box
-    // there's GOTTA BE another way
-    m_inputValueLabel.setFillColor(sf::Color::Black);
-    m_inputValueLabel.setPosition({1080.f, 384.f});
+    std::function <bool(int&, std::string)> valueChecker =
+    [](int &value, std::string input) {
+        if (input.empty()) return false;
 
-    m_inputValueBox.setSize({190.f, 50.f});
-    m_inputValueBox.setPosition({1080.f, 414.f});
-    m_inputValueBox.setFillColor(sf::Color::White);
-    m_inputValueBox.setOutlineThickness(2.f);
-    m_inputValueBox.setOutlineColor(c_valueBoxBorderColor);
-
-    m_inputValueText.setFillColor(sf::Color::Black);
-    m_inputValueText.setPosition({1080.f, 424.f});
+        try
+        {
+            value = std::stoi(input);
+            return (value >= 0  && value <= MAXA);
+        }
+        catch (...)
+        {
+            return false;
+        }
+    };
+    InputBoxOptions valueBoxOptions(font, valueChecker, "Value", 1080.f, 384.f);
+    valueBoxOptions.borderColor = c_valueBoxBorderColor;
+    valueBoxOptions.borderColorFocused = c_highlightColor;
+    m_inputValue.emplace(valueBoxOptions);
 
     // info text
-    // need to look into what centerTextX actually does
     m_topInfoText.setFillColor(sf::Color::Black);
     centerTextX(m_topInfoText, 640.f, 24.f);
     std::cerr<<m_topInfoText.getPosition().x<<" "
@@ -127,137 +367,125 @@ void LinkedListScreen::lastStep()
 
 void LinkedListScreen::generate()
 {
-    list.clear();
-    for (int i=0;i<MAXN/2;i++)
-        list.push_back(rand()%MAXA);
-    
-    m_message = "generated a new list";
+    int err = list.generate();    
+    switch (err) {
+        case 0:
+            m_message = "generated a new list";
+            break;
+        default:
+            m_message = "something deeply wrong happened";
+            break;
+    }
     return;
 }
 
 void LinkedListScreen::pushFront(int value)
 {
-    if (list.size() >= MAXN)
-    {
-        m_message = "linked list reached display limit, can't push a new member";
-        return;
+    int err = list.pushFront(value);
+    switch (err) {
+        case 1:
+            m_message = "linked list reached display limit, can't push a new member";
+            break;
+        case 0:
+            m_message = "added " + std::to_string(value) + " to start of list";
+            break;
+        default:
+            m_message = "something deeply wrong happened";
+            break;
     }
-
-    list.push_back(0);
-    for (int i=(int)(list.size())-1;i>0;i--)
-        list[i] = list[i-1];
-    list[0] = value;
-
-    m_message = "added " + std::to_string(value) + " to start of list";
     return;
 }
 
 void LinkedListScreen::insert(int pos, int value)
 {
-    if (list.size() >= MAXN)
-    {
-        m_message = "linked list reached display limit, can't insert a new member";
-        return;
-    }
-
-    list.push_back(0);
-    for (int i=(int)(list.size())-1;i>pos;i--)
-        list[i] = list[i-1];
-    list[pos] = value;
-
-    m_message = "inserted " + std::to_string(value) + " to position " + std::to_string(pos);
+    int err = list.insert(pos, value);
+    switch (err) {
+        case 2:
+            m_message = "invalid position";
+            break;
+        case 1:
+            m_message = "linked list reached display limit, can't insert a new member";
+            break;
+        case 0:
+            m_message = "inserted " + std::to_string(value) + " to position " + std::to_string(pos);
+            break;
+        default:
+            m_message = "something deeply wrong happened";
+            break;
+    }    
     return;
 }
 
 void LinkedListScreen::popFront()
 {
-    if (list.size() == 0)
-    {
-        m_message = "linked list is empty";
-        return;
-    }
-
-    for (int i=0;i+1<list.size();i++)
-        list[i] = list[i+1];
-    list.pop_back();
-
-    m_message = "deleted the first position";
+    int err = list.popFront();
+    switch (err) {
+        case 1:
+            m_message = "linked list is empty";
+            break;
+        case 0:
+            m_message = "deleted the first position";
+            break;
+        default:
+            m_message = "something deeply wrong happened";
+            break;
+    }   
     return;
 }
 
 void LinkedListScreen::remove(int pos)
 {
-    if (list.size() == 0)
-    {
-        m_message = "linked list is empty";
-        return;
+    int err = list.remove(pos);
+    switch (err) {
+        case 2:
+            m_message = "invalid position";
+            break;
+        case 1:
+            m_message = "linked list is empty";
+            break;
+        case 0:
+            m_message = "deleted value at position " + std::to_string(pos);
+            break;
+        default:
+            m_message = "something deeply wrong happened";
+            break;
     }
-
-    for (int i=pos;i+1<list.size();i++)
-        list[i] = list[i+1];
-    list.pop_back();
-
-    m_message = "deleted value at position " + std::to_string(pos);
     return;
 }
 
 void LinkedListScreen::update(int pos, int value)
 {
-    if (list.size() >= pos)
-    {
-        m_message = "linked list does not have enough elements";
-        return;
+    int err = list.update(pos, value);
+    switch (err) {
+        case 2:
+            m_message = "invalid position";
+            break;
+        case 0:
+            m_message = "update position " + std::to_string(pos) + 
+                        " with value" + std::to_string(value);
+            break;
+        default:
+            m_message = "something deeply wrong happened";
+            break;
     }
-
-    list[pos] = value;
-    m_message = "update position " + std::to_string(pos) + 
-                " with value" + std::to_string(value);
     return;
 }
 
 void LinkedListScreen::searchPos(int pos)
 {
-    if (list.size() >= pos)
-    {
-        m_message = "linked list does not have enough elements";
-        return;
+    int value, err = list.searchPos(pos, value);
+    switch (err) {
+        case 2:
+            m_message = "invalid position";
+            break;
+        case 0:
+            m_message = "position " + std::to_string(pos) + " has value " + std::to_string(value);
+            break;
+        default:
+            m_message = "something deeply wrong happened";
+            break;
     }
-    
-    m_message = "position " + std::to_string(pos) + " has value " + std::to_string(list[pos]);
     return;
-}
-
-bool LinkedListScreen::parseInput(int& value, std::string m_input) const
-{
-    if (m_input.empty())
-        return false;
-
-    try
-    {
-        value = std::stoi(m_input);
-        return (value >= 0  && value <= MAXA);
-    }
-    catch (...)
-    {
-        return false;
-    }
-}
-
-void LinkedListScreen::appendDigit(char digit, std::string &m_input)
-{
-    if (m_input.size() < 9)
-        m_input += digit;
-}
-
-void LinkedListScreen::removeLastDigit(std::string &m_input)
-{
-    if (!m_input.empty())
-        m_input.pop_back();
-}
-
-void LinkedListScreen::clearInput(std::string &m_input)
-{
-    m_input.clear();
 }
 
 void LinkedListScreen::handleEvent(const sf::Event& event, const sf::RenderWindow& window, bool& goBack)
@@ -279,23 +507,18 @@ void LinkedListScreen::handleEvent(const sf::Event& event, const sf::RenderWindo
         m_backButton.update(mousePos);
     }
 
-    //text input
-    if (const auto* textEvent = event.getIf<sf::Event::TextEntered>())
-    {
-        if (!m_isPositionInputFocused && !m_isValueInputFocused) return;
-     
-        char c = static_cast<char>(textEvent->unicode);
+    //input boxes;
+    int errPos = m_inputPosition->handleEvent(event, window);
+    int errVal = m_inputValue->handleEvent(event, window);
 
-        if (c >= '0' && c <= '9')
-        {
-            if (m_isPositionInputFocused) appendDigit(c, m_inputPosition);
-            if (m_isValueInputFocused) appendDigit(c, m_inputValue);
-        }
-        else if (textEvent->unicode == 8)
-        {
-            if (m_isPositionInputFocused) removeLastDigit(m_inputPosition);
-            if (m_isValueInputFocused) removeLastDigit(m_inputValue);
-        }
+    if (errPos == 1)
+    {
+        m_message = "Please enter a valid number\n(Number must be between 0 and " + std::to_string(MAXN-1) + ")";
+        return;
+    }
+    if (errVal == 1)
+    {
+        m_message = "Please enter a valid number\n(Number must be between 0 and " + std::to_string(MAXA) + ")";  
         return;
     }
 
@@ -322,44 +545,18 @@ void LinkedListScreen::handleEvent(const sf::Event& event, const sf::RenderWindo
             popFront();
             return;
         }
-
-        if (m_inputPositionBox.getGlobalBounds().contains(mousePos)) {
-            m_isPositionInputFocused = true;
-            m_isValueInputFocused = false;
-            m_inputPositionBox.setOutlineColor(c_highlightColor);
-            m_inputValueBox.setOutlineColor(c_valueBoxBorderColor);
-            m_message = "Please enter a valid number\n(Number must be between 0 and " + std::to_string(MAXN) + ")";
-            return;
-        }
-        else if (m_inputValueBox.getGlobalBounds().contains(mousePos)) {
-            m_isPositionInputFocused = false;
-            m_isValueInputFocused = true;
-            m_inputPositionBox.setOutlineColor(c_positionBoxBorderColor);
-            m_inputValueBox.setOutlineColor(c_highlightColor);
-            m_message = "Please enter a valid number\n(Number must be between 0 and " + std::to_string(MAXA) + ")";  
-            return;
-        } 
-        else {
-            m_isPositionInputFocused = false;
-            m_isValueInputFocused = false;
-            m_inputPositionBox.setOutlineColor(c_positionBoxBorderColor);
-            m_inputValueBox.setOutlineColor(c_valueBoxBorderColor);
-            m_message = "";
-        }
         
         // this feels inefficient. again.
         // does c++ has something like lua?
         // like iterate through table for objects
 
-        // lambda to get pos and val
-        // i don't like this solution
-        // will return
         auto getPosValue = [this]()
         {
             int position = 0;
-            if (!parseInput(position, m_inputPosition))
+            int err = m_inputPosition->getInput(position);
+            if (err == 1)
             {
-                m_message = "Please enter a valid position value\n(Number must be between 0 and " + std::to_string(MAXN) + ")";
+                m_message = "Please enter a valid position value\n(Number must be between 0 and " + std::to_string(MAXN-1) + ")";
                 return -1;
             }
             return position;
@@ -367,7 +564,8 @@ void LinkedListScreen::handleEvent(const sf::Event& event, const sf::RenderWindo
         auto getValValue = [this]()
         {
             int value = 0;
-            if (!parseInput(value, m_inputValue))
+            int err = m_inputValue->getInput(value);
+            if (err == 1)
             {
                 m_message = "Please enter a valid value\n(Number must be between 0 and " + std::to_string(MAXA) + ")";
                 return - 1;
@@ -429,16 +627,9 @@ void LinkedListScreen::update(const sf::RenderWindow& window)
 {
     (void)window; //what is this black magic
 
-    // constantly??????
-    // there's gotta be another way??????
-    if (m_inputPosition.empty())
-        m_inputPositionText.setString("...");
-    else
-        m_inputPositionText.setString(m_inputPosition);
-    if (m_inputValue.empty())
-        m_inputValueText.setString("...");
-    else
-        m_inputValueText.setString(m_inputValue);
+    // updating values
+    m_inputPosition->update();
+    m_inputValue->update();
     
     m_messageText.setString(m_message);
     centerTextX(m_messageText, 640.f, 690.f);
@@ -452,12 +643,8 @@ void LinkedListScreen::draw(sf::RenderWindow& window) const
 
     window.draw(m_topInfoText);
 
-    window.draw(m_inputPositionLabel);
-    window.draw(m_inputPositionBox);
-    window.draw(m_inputPositionText);
-    window.draw(m_inputValueLabel);
-    window.draw(m_inputValueBox);
-    window.draw(m_inputValueText);
+    m_inputPosition->draw(window);
+    m_inputValue->draw(window);
 
     m_generateButton.draw(window);
     m_pushFrontButton.draw(window);
@@ -470,23 +657,7 @@ void LinkedListScreen::draw(sf::RenderWindow& window) const
 
     window.draw(m_messageText);
 
-    // the part where we draw the linked list
-    if (list.size()==0) return;
-    sf::Text printLinkedList(m_font, "", 20);
-    std::string linkedListString = std::to_string(list[0]);
-    for (int i=1;i<list.size();i++)
-        linkedListString = linkedListString + ", " + std::to_string(list[i]);
-    printLinkedList.setString(linkedListString);
-    printLinkedList.setFillColor(sf::Color::Black);
-    // why do we have to rewrite the entire thing here????
-    // remember to investigate
-    sf::FloatRect bounds = printLinkedList.getLocalBounds();
-    printLinkedList.setOrigin({
-        bounds.position.x + bounds.size.x / 2.f,
-        bounds.position.y + bounds.size.y / 2.f
-    });
-    printLinkedList.setPosition({640, 360});
-    window.draw(printLinkedList);
+    list.draw(window, 540, 360);
 }
 
 // ok it took me way too long to get what this function does

@@ -1,13 +1,104 @@
 #pragma once
 
 #include <SFML/Graphics.hpp>
+#include <optional>
 #include <string>
 #include <vector>
+#include <functional>
 #include "../ui/Button.hpp"
+
+class LinkedListObject
+{
+private:
+    // limits
+    static constexpr int MAXN = 20;
+    static constexpr int MAXA = 99; // limit to 2 digits for easier UI
+    const sf::Font& m_font;
+
+    // DS - singly linked list
+    // in vector form because i am NOT writing an actual linked list
+    std::vector <int> list;
+public:
+    explicit LinkedListObject(const sf::Font& font);
+
+    // dealing with linked list
+    int generate();
+    int pushFront(int value);
+    int insert(int pos, int value);
+    int popFront();
+    int remove(int pos);
+    int update(int pos, int value);
+    int searchPos(int pos, int &value);
+
+    void draw(sf::RenderWindow& window, int x, int y) const;
+};
+
+struct InputBoxOptions 
+{
+    const sf::Font& font;
+    std::function<bool(int&, std::string)> func;
+    std::string label;
+    float x, y;
+    sf::Color backgroundColor = sf::Color::White;
+    sf::Color borderColor = sf::Color(128, 128, 128);
+    sf::Color borderColorFocused = sf::Color::Black;
+    sf::Color textColor = sf::Color::Black;
+    float fontSize = 24.f;
+
+    InputBoxOptions(const sf::Font& font,
+                    std::function<bool(int&, std::string)> func,
+                    std::string label, float x, float y)
+    : font(font), func(func), label(label), x(x), y(y) {};
+};
+
+class InputBox 
+{
+private:
+    //dealing with input
+    bool isInputFocused;
+    std::string input;
+    std::function<bool(int&, std::string)> isInputLegal;
+
+    //UI
+    float pos_x, pos_y;
+    int m_fontSize;
+    std::string m_label;
+    const sf::Font& m_font;
+
+    sf::Color c_borderColor;
+    sf::Color c_borderColorFocused;
+    sf::Color c_textColor;
+
+    sf::Text m_inputLabel;
+    sf::Text m_inputText;
+
+    sf::RectangleShape m_inputBox;
+
+    // input functions
+    // only digits for now
+    int appendChar(char c);
+    int removeLast();
+    int clearInput();
+public:
+    explicit InputBox(InputBoxOptions options);
+
+    // get value
+    int getInput(int &value);
+
+    // UI
+    void updateLabel(std::string newLabel);
+
+    int handleEvent(const sf::Event& event, const sf::RenderWindow& window);
+    void update();
+    void draw(sf::RenderWindow& window) const;
+};
 
 class LinkedListScreen
 {
 private:
+    static constexpr int MAXN = 20;
+    static constexpr int MAXA = 99; // limit to 2 digits for easier UI
+
     // pjsk color pallete
     // it's my project i get to do whatever i want
     sf::Color c_mizukiColor = sf::Color(228, 168, 202);
@@ -31,29 +122,19 @@ private:
 
 
     // UI things
-    static constexpr int MAXN = 10;
-    static constexpr int MAXA = 99; // limit to 2 digits for easier UI
     const sf::Font& m_font;
-
-    bool m_isPositionInputFocused;
-    bool m_isValueInputFocused;
 
     // UI
     sf::Text m_topInfoText;
     sf::Text m_messageText;
-    sf::Text m_inputPositionLabel;
-    sf::Text m_inputPositionText;
-    sf::Text m_inputValueLabel;
-    sf::Text m_inputValueText;
     
     sf::RectangleShape m_background;
     sf::RectangleShape m_menuPanel;
-    sf::RectangleShape m_inputPositionBox;
-    sf::RectangleShape m_inputValueBox;
     
+    std::optional<InputBox> m_inputPosition;
+    std::optional<InputBox> m_inputValue;
+
     // input
-    std::string m_inputPosition;
-    std::string m_inputValue;
     std::string m_message = "Ready.";
 
     // action buttons
@@ -66,9 +147,8 @@ private:
     Button m_searchPosButton;
     Button m_backButton;
 
-    //DS - singly linked list
-    //in vector form because i am NOT writing an actual linked list
-    std::vector <int> list;
+    // linked list
+    LinkedListObject list;
 
 private:
     void centerTextX(sf::Text& text, float x, float y);
@@ -83,11 +163,6 @@ private:
     void remove(int pos);
     void update(int pos, int value);
     void searchPos(int pos);
-
-    bool parseInput(int& value, std::string m_input) const;
-    void appendDigit(char digit, std::string &m_input);
-    void removeLastDigit(std::string &m_input);
-    void clearInput(std::string &m_input);
 
 public:
     explicit LinkedListScreen(const sf::Font& font);
