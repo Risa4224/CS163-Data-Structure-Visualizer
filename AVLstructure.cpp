@@ -4,8 +4,6 @@
 
 using namespace std;
 
-// logic
-
 AVLTree::AVLTree() : root(nullptr) {}
 
 AVLTree::~AVLTree()
@@ -36,13 +34,18 @@ int AVLTree::getBalanceFactor(Node *node)
 Node *AVLTree::rotateRight(Node *y)
 {
     Node *x = y->left;
+    takeSnapshot(y->data, "Rotate Right: x = y->left", 0, "ROT_R");
+
     Node *T2 = x->right;
+    takeSnapshot(y->data, "Rotate Right: T2 = x->right", 1, "ROT_R");
 
     x->right = y;
     y->left = T2;
+    takeSnapshot(x->data, "Re-linking nodes...", 2, "ROT_R");
 
     y->height = max(height(y->left), height(y->right)) + 1;
     x->height = max(height(x->left), height(x->right)) + 1;
+    takeSnapshot(x->data, "Update heights", 3, "ROT_R");
 
     return x;
 }
@@ -50,13 +53,18 @@ Node *AVLTree::rotateRight(Node *y)
 Node *AVLTree::rotateLeft(Node *x)
 {
     Node *y = x->right;
+    takeSnapshot(x->data, "Rotate Left: y = x->right", 0, "ROT_L");
+
     Node *T2 = y->left;
+    takeSnapshot(x->data, "Rotate Left: T2 = y->left", 1, "ROT_L");
 
     y->left = x;
     x->right = T2;
+    takeSnapshot(y->data, "Re-linking nodes...", 2, "ROT_L");
 
     x->height = max(height(x->left), height(x->right)) + 1;
     y->height = max(height(y->left), height(y->right)) + 1;
+    takeSnapshot(y->data, "Update heights", 3, "ROT_L");
 
     return y;
 }
@@ -68,138 +76,110 @@ Node *AVLTree::balance(Node *&node)
     // LL Case
     if (balanceFactor > 1 && getBalanceFactor(node->left) >= 0)
     {
-        takeSnapshot(node->data, "LL unbalanced. Rotating right.", 0);
+        takeSnapshot(node->data, "LL Case: Right Rotation needed", 0, "BALANCE");
         node = rotateRight(node);
-        takeSnapshot(node->data, "Done rotating right. Node " + to_string(node->data) + " is now the root.", 0);
         return node;
     }
 
     // LR Case
     if (balanceFactor > 1 && getBalanceFactor(node->left) < 0)
     {
-        takeSnapshot(node->left->data, "LR unbalanced. Rotating left.", 0);
+        takeSnapshot(node->left->data, "LR Case: Left Rotation on child first", 1, "BALANCE");
         node->left = rotateLeft(node->left);
-        takeSnapshot(node->data, "Continuing to rotate right.", 0);
+        takeSnapshot(node->data, "LR Case: Now Right Rotation on node", 1, "BALANCE");
         node = rotateRight(node);
-        takeSnapshot(node->data, "Done rotating right.", 0);
         return node;
     }
 
     // RR Case
     if (balanceFactor < -1 && getBalanceFactor(node->right) <= 0)
     {
-        takeSnapshot(node->data, "RR unbalanced. Rotating left.", 0);
+        takeSnapshot(node->data, "RR Case: Left Rotation needed", 2, "BALANCE");
         node = rotateLeft(node);
-        takeSnapshot(node->data, "Done rotating left. Node " + to_string(node->data) + " is now the root.", 0);
         return node;
     }
 
     // RL Case
     if (balanceFactor < -1 && getBalanceFactor(node->right) > 0)
     {
-        takeSnapshot(node->right->data, "RL unbalanced. Rotating right.", 0);
+        takeSnapshot(node->right->data, "RL Case: Right Rotation on child first", 3, "BALANCE");
         node->right = rotateRight(node->right);
-        takeSnapshot(node->data, "Continuing to rotate left.", 0);
+        takeSnapshot(node->data, "RL Case: Now Left Rotation on node", 3, "BALANCE");
         node = rotateLeft(node);
-        takeSnapshot(node->data, "Done rotating left.", 0);
         return node;
     }
 
     return node;
 }
-// process
 
 Node *AVLTree::insert(Node *&node, int data)
 {
     if (!node)
     {
         node = new Node(data);
-        node->left = nullptr;
-        node->right = nullptr;
+        node->left = node->right = nullptr;
         node->height = 1;
         return node;
     }
 
-    takeSnapshot(node->data, "Comparing " + to_string(data) + " with " + to_string(node->data), 0);
-
     if (data < node->data)
     {
-        bool isNull = (node->left == nullptr);
+        takeSnapshot(node->data, "data < node->data: Go Left", 0, "INS_L");
         node->left = insert(node->left, data);
-        if (isNull)
-            takeSnapshot(data, "Inserted " + to_string(data) + " to the left", 0);
     }
     else if (data > node->data)
     {
-        bool isNull = (node->right == nullptr);
+        takeSnapshot(node->data, "data > node->data: Go Right", 0, "INS_R");
         node->right = insert(node->right, data);
-        if (isNull)
-            takeSnapshot(data, "Inserted " + to_string(data) + " to the right", 0);
     }
     else
     {
-        takeSnapshot(node->data, "Value " + to_string(data) + " already exists!", 0);
         return node;
     }
 
     node->height = 1 + max(height(node->left), height(node->right));
 
-    int bf = getBalanceFactor(node);
-    if (bf >= -1 && bf <= 1)
-    {
-        takeSnapshot(node->data, "Rotating back: Node " + to_string(node->data) + " is balanced", 0);
-    }
-
+    takeSnapshot(node->data, "Backtracking and checking balance...", 1, "BALANCE");
     return balance(node);
 }
 
 void AVLTree::insert(int data)
 {
     animationStates.clear();
-    takeSnapshot(-1, "Inserting: " + to_string(data), 0);
+    takeSnapshot(-1, "Preparing to insert value: " + to_string(data), 0, "API");
 
     bool wasEmpty = (root == nullptr);
     root = insert(root, data);
+
     if (wasEmpty)
     {
-        takeSnapshot(data, "Inserted root node " + to_string(data), 0);
+        takeSnapshot(data, "Tree was empty. Node " + to_string(data) + " becomes root.", 1, "API");
     }
 
-    takeSnapshot(-1, "Insert Completed " + to_string(data), 0);
+    takeSnapshot(-1, "Insertion process finished.", 2, "API");
 }
-
-//
-
-Node *AVLTree::minValueNode(Node *node)
-{
-    Node *current = node;
-    while (current->left)
-        current = current->left;
-    return current;
-}
-
-//
 
 Node *AVLTree::remove(Node *&node, int data)
 {
     if (!node)
-    {
-        takeSnapshot(-1, "Value " + to_string(data) + " not found to delete.", 0);
         return nullptr;
-    }
-
-    takeSnapshot(node->data, "Searching for " + to_string(data) + ": checking node " + to_string(node->data), 0);
 
     if (data < node->data)
+    {
+        takeSnapshot(node->data, "data < node->data: Search Left", 0, "DEL");
         node->left = remove(node->left, data);
+    }
     else if (data > node->data)
+    {
+        takeSnapshot(node->data, "data > node->data: Search Right", 0, "DEL");
         node->right = remove(node->right, data);
+    }
     else
     {
-        takeSnapshot(node->data, "Found node to delete: " + to_string(data), 0);
-
+        // Tìm thấy node cần xóa
         if (!node->left || !node->right)
         {
+            takeSnapshot(node->data, "Deleting node with < 2 children", 1, "DEL");
             Node *temp = node->left ? node->left : node->right;
             if (!temp)
             {
@@ -213,98 +193,31 @@ Node *AVLTree::remove(Node *&node, int data)
                 temp = toDelete;
             }
             delete temp;
-            takeSnapshot(-1, "Deleted node " + to_string(data), 0);
         }
         else
         {
-            takeSnapshot(node->data, "Node has 2 children: finding successor in right subtree...", 0);
+            takeSnapshot(node->data, "Node has 2 children, find successor", 2, "DEL");
             Node *temp = minValueNode(node->right);
-
-            takeSnapshot(temp->data, "Replacement found: Node " + to_string(temp->data), 0);
             node->data = temp->data;
+            takeSnapshot(node->data, "Replacement found, delete successor", 3, "DEL");
             node->right = remove(node->right, temp->data);
         }
     }
 
     if (!node)
         return nullptr;
-
     node->height = 1 + max(height(node->left), height(node->right));
-
-    takeSnapshot(node->data, "Backtracking: checking balance at node " + to_string(node->data), 0);
-
     return balance(node);
 }
 
 void AVLTree::remove(int data)
 {
     animationStates.clear();
-    takeSnapshot(-1, "Starting deletion of: " + to_string(data), 0);
+    takeSnapshot(-1, "Starting deletion process for: " + to_string(data), 0, "API");
+
     root = remove(root, data);
-    takeSnapshot(-1, "Finished deletion of " + to_string(data), 0);
-}
-//
 
-void AVLTree::inorder(Node *node)
-{
-    if (node)
-    {
-        inorder(node->left);
-        cout << node->data << " ";
-        inorder(node->right);
-    }
-}
-
-void AVLTree::inorderTraversal()
-{
-    inorder(root);
-    cout << endl;
-}
-
-void AVLTree::preorder(Node *node)
-{
-    if (node)
-    {
-        cout << node->data << " ";
-        preorder(node->left);
-        preorder(node->right);
-    }
-}
-
-void AVLTree::preorderTraversal()
-{
-    preorder(root);
-    cout << endl;
-}
-
-void AVLTree::postorder(Node *node)
-{
-    if (node)
-    {
-        postorder(node->left);
-        postorder(node->right);
-        cout << node->data << " ";
-    }
-}
-
-void AVLTree::postorderTraversal()
-{
-    postorder(root);
-    cout << endl;
-}
-
-//
-
-int AVLTree::getHeight()
-{
-    return height(root);
-}
-
-//
-
-bool AVLTree::isEmpty()
-{
-    return root == nullptr;
+    takeSnapshot(-1, "Deletion process completed.", 1, "API");
 }
 
 bool AVLTree::search(int data)
@@ -313,26 +226,153 @@ bool AVLTree::search(int data)
     Node *current = root;
     while (current)
     {
-        takeSnapshot(current->data, "Checking node " + to_string(current->data), 0);
+        takeSnapshot(current->data, "Checking node " + to_string(current->data), 0, "SEARCH");
 
         if (data == current->data)
         {
-            takeSnapshot(current->data, "Success! Found " + to_string(data), 0);
+            takeSnapshot(current->data, "Value found: " + to_string(data), 1, "SEARCH");
             return true;
         }
-        else if (data < current->data)
+
+        if (data < current->data)
         {
-            takeSnapshot(current->data, to_string(data) + " is less than, moving to the left", 0);
+            takeSnapshot(current->data, to_string(data) + " < " + to_string(current->data) + " -> Go Left", 2, "SEARCH");
             current = current->left;
         }
         else
         {
-            takeSnapshot(current->data, to_string(data) + " is greater than, moving to the right", 0);
+            takeSnapshot(current->data, to_string(data) + " > " + to_string(current->data) + " -> Go Right", 3, "SEARCH");
             current = current->right;
         }
     }
-    takeSnapshot(-1, "Failed to find " + to_string(data) + " in the tree.", 0);
+    takeSnapshot(-1, "Value " + to_string(data) + " not in tree.", 4, "SEARCH");
     return false;
+}
+void AVLTree::takeSnapshot(int highlightData, std::string action, int lineID, std::string codeType)
+{
+    TreeState newState;
+    newState.highlightData = highlightData;
+    newState.action = action;
+    newState.lineID = lineID;
+    newState.currentCodeType = codeType;
+
+    float startX = 700.0f;
+    float startY = 150.0f;
+    float initialOffset = 180.0f;
+
+    copyTreeToSnapshot(root, newState.captures, startX, startY, initialOffset);
+    animationStates.push_back(newState);
+}
+
+void AVLTree::inorder(Node *node)
+
+{
+
+    if (node)
+
+    {
+
+        inorder(node->left);
+
+        cout << node->data << " ";
+
+        inorder(node->right);
+    }
+}
+
+void AVLTree::inorderTraversal()
+
+{
+
+    inorder(root);
+
+    cout << endl;
+}
+
+void AVLTree::preorder(Node *node)
+
+{
+
+    if (node)
+
+    {
+
+        cout << node->data << " ";
+
+        preorder(node->left);
+
+        preorder(node->right);
+    }
+}
+
+void AVLTree::preorderTraversal()
+
+{
+
+    preorder(root);
+
+    cout << endl;
+}
+
+void AVLTree::postorder(Node *node)
+
+{
+
+    if (node)
+
+    {
+
+        postorder(node->left);
+
+        postorder(node->right);
+
+        cout << node->data << " ";
+    }
+}
+
+void AVLTree::postorderTraversal()
+
+{
+
+    postorder(root);
+
+    cout << endl;
+}
+
+//
+
+int AVLTree::getHeight()
+
+{
+
+    return height(root);
+}
+
+//
+
+bool AVLTree::isEmpty()
+
+{
+
+    return root == nullptr;
+}
+
+void AVLTree::clear()
+{
+
+    destroyTree(root);
+
+    root = nullptr;
+
+    animationStates.clear();
+}
+
+Node *AVLTree::minValueNode(Node *node)
+{
+    Node *current = node;
+    while (current && current->left != nullptr)
+        current = current->left;
+    return current;
 }
 
 int AVLTree::copyTreeToSnapshot(Node *node, std::vector<NodeState> &snapshot, float x, float y, float offset)
@@ -359,30 +399,4 @@ int AVLTree::copyTreeToSnapshot(Node *node, std::vector<NodeState> &snapshot, fl
     snapshot[currentIndex].right = rightIdx;
 
     return currentIndex;
-}
-
-void AVLTree::takeSnapshot(int highlightData, std::string action, int codeLine)
-{
-    TreeState newState;
-    newState.highlightData = highlightData;
-    newState.action = action;
-    newState.codeLine = codeLine;
-
-    float startX = 750.0f;
-    float startY = 80.0f;
-    float initialOffset = 250.0f;
-
-    copyTreeToSnapshot(root, newState.captures, startX, startY, initialOffset);
-
-    animationStates.push_back(newState);
-}
-
-void AVLTree::clear()
-{
-
-    destroyTree(root);
-
-    root = nullptr;
-
-    animationStates.clear();
 }
