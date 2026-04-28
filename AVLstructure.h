@@ -25,10 +25,9 @@ struct TreeState
 {
     std::vector<NodeState> captures;
     std::string action;
-    int codeLine;
     int highlightData;
-
-    std::string description;
+    int lineID;
+    std::string currentCodeType;
 };
 class AVLTree
 {
@@ -63,7 +62,7 @@ private:
     void destroyTree(Node *node);
 
     int copyTreeToSnapshot(Node *node, std::vector<NodeState> &snapshot, float x, float y, float offset);
-    void takeSnapshot(int highlightData, std::string action, int codeLine);
+    void takeSnapshot(int highlightData, std::string action, int lineID, std::string codeType);
 };
 
 #endif
