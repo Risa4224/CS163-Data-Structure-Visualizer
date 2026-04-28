@@ -256,8 +256,8 @@ void GraphScreen::handleEvent(const sf::Event& event, const sf::RenderWindow& wi
 
         if (m_isDraggingSlider) {
             // Giới hạn x không vượt quá 2 đầu thanh ray (70 đến 230)
-            float newX = std::max(70.f, std::min(mousePos.x, 230.f)); 
-            m_sliderKnob.setPosition({newX, 634.f});
+            float newX = std::max(77.f, std::min(mousePos.x, 223.f)); 
+            m_sliderKnob.setPosition({newX, 649.f});
         }
     }
 
@@ -288,8 +288,8 @@ void GraphScreen::handleEvent(const sf::Event& event, const sf::RenderWindow& wi
         // Xử lý Click vào thanh trượt
         if (m_sliderKnob.getGlobalBounds().contains(mousePos) || m_sliderTrack.getGlobalBounds().contains(mousePos)) {
             m_isDraggingSlider = true;
-            float newX = std::max(70.f, std::min(mousePos.x, 230.f));
-            m_sliderKnob.setPosition({newX, 634.f});
+            float newX = std::max(77.f, std::min(mousePos.x, 223.f));
+            m_sliderKnob.setPosition({newX, 649.f});
             return; 
         }
         if (m_inputBox.getGlobalBounds().contains(mousePos)) {
@@ -494,7 +494,7 @@ void GraphScreen::draw(sf::RenderWindow& window) const {
         codePanel.setOutlineColor(sf::Color(60, 60, 60));
         window.draw(codePanel);
 
-        // Mẹo bắt từ khóa trong thông báo để biết đang chạy tới dòng nào
+        // bắt từ khóa trong thông báo để biết đang chạy tới dòng nào
         int activeLine = -1;
         if (m_hasResult && !m_states.empty()) {
             std::string msg = m_states[m_currentStateIndex].message;
