@@ -7,24 +7,92 @@
 #include <functional>
 #include "../ui/Button.hpp"
 
-#define MAX_N 40
-#define MAX_A 99 // limit to 2 digits for easier UI
-#define MAX_LINE 8 // number of blocks on a line
+struct LinkedListConsts {
+    // linked list consts
+    static constexpr int MAX_N = 35; // max num of elements
+    static constexpr int MAX_A = 99; // max num of value
+    static constexpr int MAX_LINE = 7; // max num of elements on a line
+    static constexpr int AUTO_TIME = 1; // number of seconds per auto tick
+
+    // pjsk color pallete
+    // it's my project i get to do whatever i want
+    // niigo
+    sf::Color c_kanadeColor = sf::Color(187, 101, 136);
+    sf::Color c_mafuyuColor = sf::Color(136, 137, 204);
+    sf::Color c_enaColor = sf::Color(204, 170, 135);
+    sf::Color c_mizukiColor = sf::Color(228, 168, 202);
+    // leoni
+    sf::Color c_ichikaColor = sf::Color(51, 170, 238);
+    sf::Color c_sakiColor = sf::Color(255, 221, 68);
+    sf::Color c_honamiColor = sf::Color(238, 102, 102);    
+    sf::Color c_shihoColor = sf::Color(187, 221, 34);
+};
+static constexpr LinkedListConsts ll_consts;
 
 class LinkedListObject
 {
 private:
-    // limits
-    static constexpr int MAXN = MAX_N;
-    static constexpr int MAXA = MAX_A; 
-    static constexpr int MAXLINE = MAX_LINE;
+    // consts
+    static constexpr int MAXN = ll_consts.MAX_N;
+    static constexpr int MAXA = ll_consts.MAX_A; 
+    static constexpr int MAXLINE = ll_consts.MAX_LINE;
     const sf::Font& m_font;
+    const sf::Color c_styleButtonColor = ll_consts.c_mizukiColor;
+    const sf::Color c_numberBlockBorderColor = ll_consts.c_kanadeColor;
+    const sf::Color c_numberBlockBorderColorFocused = ll_consts.c_mafuyuColor;
+    const std::string playCharacter = "P";
+    const std::string pauseCharacter = "||";
+
+    // vars
+    float blockSize = 40.f;
+    float blockBorder = 5.f;
+    float blockTotalSize = blockSize + blockBorder * 2;
+    float listX, listY;
+    float stepsX, stepsY;
+
+    // steps
+    // don't like this
+    bool isStep = false, isAuto = false;
+    int curStep, cntSteps;
+    std::string mode = "";
+    int s_pos, s_value;
 
     // DS - singly linked list
     // in vector form because i am NOT writing an actual linked list
     std::vector <int> list;
+    // copy of list for steps
+    // this is NOT efficient but this code is not efficient anyway
+    // so who cares
+    std::vector <int> stepList; 
+
+    // constant UI elements
+    sf::Text m_stepText;
+    sf::Clock m_clock;
+    
+    Button m_leftStepButton;
+    Button m_rightStepButton;
+    Button m_autoStepButton;
+
+    // basic UI blocks
+    void drawArrow(sf::RenderWindow& window, 
+        float startX, float startY, float endX, float endY) const; 
+    void drawNumberBlock(sf::RenderWindow& window, 
+        float x, float y, int value, bool isFocused) const;
+
+    // steps
+    void updateMode(int steps, std::string m, int p, int v);
+    bool leftStep();
+    bool rightStep();
+    bool toggleAuto();
+
+    // drawing
+    void drawStepMenu(sf::RenderWindow& window) const;
+    void drawStep(sf::RenderWindow& window) const;
+    void drawLinkedList(sf::RenderWindow& window) const;
+
 public:
-    explicit LinkedListObject(const sf::Font& font);
+    explicit LinkedListObject(const sf::Font& font,
+        float listX, float listY, float stepsX, float stepsY);
 
     // dealing with linked list
     int generate();
@@ -35,12 +103,11 @@ public:
     int update(int pos, int value);
     int searchPos(int pos, int &value);
 
-    // drawing
-    void drawArrow (sf::RenderWindow& window, 
-        float startX, float startY, float endX, float endY) const; 
-    void drawNumberBlock(sf::RenderWindow& window, 
-        float x, float y, int value) const;
-    void draw(sf::RenderWindow& window, float x, float y) const;
+    // UI
+    void handleEvent(const sf::Event& event, 
+        const sf::RenderWindow& window);
+    void update(const sf::RenderWindow& window);
+    void draw(sf::RenderWindow& window) const;
 };
 
 struct InputBoxOptions 
@@ -107,29 +174,19 @@ public:
 class LinkedListScreen
 {
 private:
-    static constexpr int MAXN = MAX_N;
-    static constexpr int MAXA = MAX_A; 
-
-    // pjsk color pallete
-    // it's my project i get to do whatever i want
-    sf::Color c_mizukiColor = sf::Color(228, 168, 202);
-    sf::Color c_mafuyuColor = sf::Color(136, 137, 204);
-    sf::Color c_enaColor = sf::Color(204, 170, 135);
-    sf::Color c_ichikaColor = sf::Color(51, 170, 238);
-    sf::Color c_honamiColor = sf::Color(238, 102, 102);
-    sf::Color c_sakiColor = sf::Color(255, 221, 68);
-    sf::Color c_shihoColor = sf::Color(187, 221, 34);
+    static constexpr int MAXN = ll_consts.MAX_N;
+    static constexpr int MAXA = ll_consts.MAX_A; 
     
     // UI colors
-    sf::Color c_overallBackgroundColor = c_ichikaColor;
-    sf::Color c_menuPanelColor = c_enaColor;
-    sf::Color c_styleButtonColor = c_mizukiColor;
-    sf::Color c_positionBoxBorderColor = c_sakiColor;
-    sf::Color c_valueBoxBorderColor = c_shihoColor;
-    sf::Color c_messageTextColor = c_honamiColor;
+    const sf::Color c_overallBackgroundColor = ll_consts.c_ichikaColor;
+    const sf::Color c_menuPanelColor = ll_consts.c_enaColor;
+    const sf::Color c_styleButtonColor = ll_consts.c_mizukiColor;
+    const sf::Color c_positionBoxBorderColor = ll_consts.c_sakiColor;
+    const sf::Color c_valueBoxBorderColor = ll_consts.c_shihoColor;
+    const sf::Color c_messageTextColor = ll_consts.c_honamiColor;
 
-    sf::Color c_errorColor = c_honamiColor;
-    sf::Color c_highlightColor = c_mafuyuColor;
+    const sf::Color c_errorColor = ll_consts.c_honamiColor;
+    const sf::Color c_highlightColor = ll_consts.c_mafuyuColor;
 
 
     // UI things
@@ -164,9 +221,6 @@ private:
 private:
     void centerTextX(sf::Text& text, float x, float y);
 
-    void nextStep();
-    void lastStep();
-
     void generate();
     void pushFront(int value);
     void insert(int pos, int value);
@@ -183,7 +237,3 @@ public:
     void update(const sf::RenderWindow& window);
     void draw(sf::RenderWindow& window) const;
 };
-
-#undef MAX_N
-#undef MAX_A
-#undef MAX_LINE
