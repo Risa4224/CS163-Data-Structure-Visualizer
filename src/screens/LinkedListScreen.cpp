@@ -3,6 +3,7 @@
 #include <functional>
 #include <iostream>
 #include <ctime>
+#include <cmath>
 #include <string>
 #include <sstream>
 #include <iomanip>
@@ -10,6 +11,8 @@
 /*
 Important parameters:
 Screen: 1280 x 720
+
+the level of hardcoding here is making me cry
 */
 
 LinkedListObject::LinkedListObject(const sf::Font& font)
@@ -110,25 +113,88 @@ int LinkedListObject::searchPos(int pos, int &value)
     }
 }
 
-void LinkedListObject::draw(sf::RenderWindow& window, int x, int y) const
+void LinkedListObject::drawArrow(sf::RenderWindow& window, 
+    float startX, float startY, float endX, float endY) const
 {
-    // the part where we draw the linked list
-    if (list.size()==0) return;
-    sf::Text printLinkedList(m_font, "", 20);
-    std::string linkedListString = std::to_string(list[0]);
-    for (int i=1;i<list.size();i++)
-        linkedListString = linkedListString + ", " + std::to_string(list[i]);
-    printLinkedList.setString(linkedListString);
-    printLinkedList.setFillColor(sf::Color::Black);
-    // why do we have to rewrite the entire thing here????
-    // remember to investigate
-    sf::FloatRect bounds = printLinkedList.getLocalBounds();
-    printLinkedList.setOrigin({
+    float length = std::sqrt((endX - startX) * (endX - startX)
+                    +  (endY - startY) * (endY - startY));
+    float radius = std::min(length / 5.f, 8.f);
+
+    sf::RectangleShape line{{length, 2.f}};
+    sf::CircleShape triangle(radius, 3);
+    line.setOrigin({0, 1.f});
+    triangle.setOrigin({radius, 0});
+    auto rad = sf::radians(std::atan2(endY - startY, endX - startX));
+    line.setRotation(rad);
+    triangle.setRotation(rad + sf::degrees(90));
+    line.setPosition({startX, startY});
+    triangle.setPosition({endX, endY});
+    window.draw(line); window.draw(triangle);
+}
+
+void LinkedListObject::drawNumberBlock(sf::RenderWindow& window, 
+    float x, float y, int value) const
+{
+    sf::RectangleShape block;
+    block.setSize({40.f, 40.f});
+    block.setPosition({x-20.f, y-20.f});
+    block.setFillColor(sf::Color::White);
+    block.setOutlineThickness(2.f);
+    block.setOutlineColor(sf::Color::Black);
+    
+    sf::Text number(m_font, std::to_string(value), 24);
+    number.setFillColor(sf::Color::Black);
+    sf::FloatRect bounds = number.getLocalBounds();
+    number.setOrigin({
         bounds.position.x + bounds.size.x / 2.f,
         bounds.position.y + bounds.size.y / 2.f
     });
-    printLinkedList.setPosition({640, 360});
-    window.draw(printLinkedList);
+    number.setPosition({x, y});
+    window.draw(number);
+    
+    window.draw(block);
+    window.draw(number);
+}
+
+void LinkedListObject::draw(sf::RenderWindow& window, float x, float y) const
+{
+    sf::RectangleShape dot;
+    dot.setSize({5.f, 5.f});
+    dot.setPosition({x, y});
+    dot.setFillColor(sf::Color::Black);
+    window.draw(dot);
+    // preliminary checks
+    if (list.size()==0) return;
+
+    // the part where we draw the linked list
+    int noLines = (int)(list.size()) / MAXLINE + ((int)(list.size()) % MAXLINE != 0);
+    float startX = x - 44.f * (MAXLINE - 1);
+    float startY = y - 44.f * (noLines - 1);
+    for (int i=0; i*MAXLINE < list.size(); i++)
+    {
+        for (int j=0; j < MAXLINE && i*MAXLINE+j < list.size(); j++)
+        {
+            int pos = i * MAXLINE + j;
+            float blockX = startX + 44.f * j * 2;
+            float blockY = startY + 44.f * i * 2;
+            drawNumberBlock(window, blockX, blockY, list[pos]);
+            if (j+1<MAXLINE && i*MAXLINE+j+1<list.size())
+            {
+                float nextBlockX = blockX + 44.f * 2;
+                drawArrow(window, blockX + 22.f, blockY, nextBlockX - 22.f, blockY);
+            }
+        }
+        if ((i+1) * MAXLINE < list.size())
+            //bottom left corner of top block 
+            //to top right corner of bottom block
+            drawArrow(
+                window,
+                startX + 44.f * (MAXLINE-1) * 2 - 22.f, // top block x
+                startY + 44.f * i * 2 + 22.f, // top block y
+                startX + 22.f, // bottom block x
+                startY + 44.f * (i+1) * 2 - 22.f // bottom block y
+            );
+    }
 }
 
 InputBox::InputBox(InputBoxOptions options)
@@ -325,9 +391,7 @@ LinkedListScreen::LinkedListScreen(const sf::Font& font)
 
     // info text
     m_topInfoText.setFillColor(sf::Color::Black);
-    centerTextX(m_topInfoText, 640.f, 24.f);
-    std::cerr<<m_topInfoText.getPosition().x<<" "
-             <<m_topInfoText.getPosition().y<<" ";                
+    centerTextX(m_topInfoText, 640.f, 24.f);               
 
     m_messageText.setFillColor(c_messageTextColor);
     centerTextX(m_messageText, 640.f, 690.f);
@@ -657,7 +721,7 @@ void LinkedListScreen::draw(sf::RenderWindow& window) const
 
     window.draw(m_messageText);
 
-    list.draw(window, 540, 360);
+    list.draw(window, 640, 360);
 }
 
 // ok it took me way too long to get what this function does

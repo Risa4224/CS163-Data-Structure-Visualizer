@@ -7,12 +7,17 @@
 #include <functional>
 #include "../ui/Button.hpp"
 
+#define MAX_N 40
+#define MAX_A 99 // limit to 2 digits for easier UI
+#define MAX_LINE 8 // number of blocks on a line
+
 class LinkedListObject
 {
 private:
     // limits
-    static constexpr int MAXN = 20;
-    static constexpr int MAXA = 99; // limit to 2 digits for easier UI
+    static constexpr int MAXN = MAX_N;
+    static constexpr int MAXA = MAX_A; 
+    static constexpr int MAXLINE = MAX_LINE;
     const sf::Font& m_font;
 
     // DS - singly linked list
@@ -30,7 +35,12 @@ public:
     int update(int pos, int value);
     int searchPos(int pos, int &value);
 
-    void draw(sf::RenderWindow& window, int x, int y) const;
+    // drawing
+    void drawArrow (sf::RenderWindow& window, 
+        float startX, float startY, float endX, float endY) const; 
+    void drawNumberBlock(sf::RenderWindow& window, 
+        float x, float y, int value) const;
+    void draw(sf::RenderWindow& window, float x, float y) const;
 };
 
 struct InputBoxOptions 
@@ -46,8 +56,8 @@ struct InputBoxOptions
     float fontSize = 24.f;
 
     InputBoxOptions(const sf::Font& font,
-                    std::function<bool(int&, std::string)> func,
-                    std::string label, float x, float y)
+        std::function<bool(int&, std::string)> func,
+        std::string label, float x, float y)
     : font(font), func(func), label(label), x(x), y(y) {};
 };
 
@@ -88,7 +98,8 @@ public:
     // UI
     void updateLabel(std::string newLabel);
 
-    int handleEvent(const sf::Event& event, const sf::RenderWindow& window);
+    int handleEvent(const sf::Event& event, 
+        const sf::RenderWindow& window);
     void update();
     void draw(sf::RenderWindow& window) const;
 };
@@ -96,8 +107,8 @@ public:
 class LinkedListScreen
 {
 private:
-    static constexpr int MAXN = 20;
-    static constexpr int MAXA = 99; // limit to 2 digits for easier UI
+    static constexpr int MAXN = MAX_N;
+    static constexpr int MAXA = MAX_A; 
 
     // pjsk color pallete
     // it's my project i get to do whatever i want
@@ -167,7 +178,12 @@ private:
 public:
     explicit LinkedListScreen(const sf::Font& font);
 
-    void handleEvent(const sf::Event& event, const sf::RenderWindow& window, bool& goBack);
+    void handleEvent(const sf::Event& event, 
+        const sf::RenderWindow& window, bool& goBack);
     void update(const sf::RenderWindow& window);
     void draw(sf::RenderWindow& window) const;
 };
+
+#undef MAX_N
+#undef MAX_A
+#undef MAX_LINE
