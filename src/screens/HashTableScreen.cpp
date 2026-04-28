@@ -49,12 +49,14 @@ HashTableScreen::HashTableScreen(const sf::Font &font)
     createTable();
 }
 
+// Tính toán index và xử lý trường hợp giá trị âm
 int HashTableScreen::hashFunction(int value) const
 {
     int res = value % FIXED_N;
     return (res < 0) ? res + FIXED_N : res;
 }
 
+// Reset bảng băm và tạo 5 giá trị ngẫu nhiên ban đầu
 void HashTableScreen::createTable()
 {
     m_table.assign(FIXED_N, std::vector<int>());
@@ -71,6 +73,7 @@ void HashTableScreen::createTable()
     }
 }
 
+// Lưu lại trạng thái hiện tại của bảng băm để phục vụ tính năng "Play/Back"
 void HashTableScreen::addStep(const std::string &msg, int line, int bucket, int node)
 {
     AnimationStep s;
@@ -82,6 +85,7 @@ void HashTableScreen::addStep(const std::string &msg, int line, int bucket, int 
     m_steps.push_back(s);
 }
 
+// Định nghĩa nội dung text cho khung mã giả (Pseudocode)
 void HashTableScreen::setupPseudocode(const std::string &action)
 {
     m_pseudocode.clear();
@@ -99,6 +103,7 @@ void HashTableScreen::setupPseudocode(const std::string &action)
     }
 }
 
+// Duyệt qua bucket tương ứng để tìm giá trị, đánh dấu dòng code đang chạy
 void HashTableScreen::prepareSearch(int value)
 {
     m_steps.clear();
@@ -118,6 +123,7 @@ void HashTableScreen::prepareSearch(int value)
     addStep("Value not found.", 4, idx);
 }
 
+// Kiểm tra trùng lặp trước khi thêm phần tử mới vào cuối danh sách liên kết
 void HashTableScreen::prepareInsert(int value)
 {
     m_steps.clear();
@@ -138,6 +144,7 @@ void HashTableScreen::prepareInsert(int value)
     m_elementCount++;
 }
 
+// Tìm phần tử trong bucket và xóa nó nếu tồn tại
 void HashTableScreen::prepareRemove(int value)
 {
     m_steps.clear();
@@ -160,11 +167,11 @@ void HashTableScreen::prepareRemove(int value)
     addStep("Value not found.", 1, idx);
 }
 
+// Xử lý logic nút bấm, nhập liệu số từ bàn phím và thanh trượt tốc độ
 void HashTableScreen::handleEvent(const sf::Event &event, sf::RenderWindow &window, bool &goBack)
 {
     sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
 
-    // Update hover states cho buttons
     m_createButton.update(mousePos);
     m_searchButton.update(mousePos);
     m_insertButton.update(mousePos);
@@ -174,7 +181,6 @@ void HashTableScreen::handleEvent(const sf::Event &event, sf::RenderWindow &wind
     m_playPauseButton.update(mousePos);
     m_nextButton.update(mousePos);
 
-    // 1. Xử lý nhập liệu văn bản
     if (const auto *textEvent = event.getIf<sf::Event::TextEntered>())
     {
         if (textEvent->unicode >= '0' && textEvent->unicode <= '9')
@@ -183,7 +189,6 @@ void HashTableScreen::handleEvent(const sf::Event &event, sf::RenderWindow &wind
             m_input.pop_back();
     }
 
-    // 2. Xử lý click chuột
     if (const auto *mousePressed = event.getIf<sf::Event::MouseButtonPressed>())
     {
         if (mousePressed->button != sf::Mouse::Button::Left)
@@ -194,7 +199,6 @@ void HashTableScreen::handleEvent(const sf::Event &event, sf::RenderWindow &wind
         if (m_createButton.contains(mousePos))
             createTable();
 
-        // Xử lý các lệnh Search/Insert/Remove
         int val;
         bool ok = false;
         try
@@ -222,23 +226,21 @@ void HashTableScreen::handleEvent(const sf::Event &event, sf::RenderWindow &wind
             if (!m_steps.empty())
             {
                 m_input.clear();
-                m_currentStep = 0; // Reset về bước đầu
+                m_currentStep = 0;
                 m_isPlaying = true;
                 m_playPauseButton.setText("Pause");
                 m_autoTimer.restart();
             }
         }
 
-        // ĐIỀU CHỈNH: Nút Play/Pause
         if (m_playPauseButton.contains(mousePos) && !m_steps.empty())
         {
             m_isPlaying = !m_isPlaying;
             m_playPauseButton.setText(m_isPlaying ? "Pause" : "Play");
             if (m_isPlaying)
-                m_autoTimer.restart(); // Restart timer khi tiếp tục
+                m_autoTimer.restart();
         }
 
-        // Nút Next/Prev
         if (m_nextButton.contains(mousePos) && m_currentStep < (int)m_steps.size() - 1)
         {
             m_currentStep++;
@@ -253,8 +255,6 @@ void HashTableScreen::handleEvent(const sf::Event &event, sf::RenderWindow &wind
         }
     }
 
-    // 3. XỬ LÝ THANH TRƯỢT (SPEED SLIDER)
-    // Cho phép kéo thả mượt mà bằng cách kiểm tra chuột trái đang đè
     if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left))
     {
         if (m_sliderBar.getGlobalBounds().contains(mousePos) || m_sliderKnob.getGlobalBounds().contains(mousePos))
@@ -266,16 +266,15 @@ void HashTableScreen::handleEvent(const sf::Event &event, sf::RenderWindow &wind
 
             m_sliderKnob.setPosition({startX + relX, m_sliderKnob.getPosition().y});
 
-            // Speed từ 0.5x đến 4.0x
             m_speedScale = 0.5f + ratio * 3.5f;
 
-            // Format text hiển thị (vd: 1.2x)
             std::string speedStr = std::to_string(m_speedScale);
             m_speedText.setString(speedStr.substr(0, speedStr.find('.') + 2) + "x");
         }
     }
 }
 
+// Điều khiển bộ đếm thời gian để tự động chuyển sang bước tiếp theo
 void HashTableScreen::update(const sf::RenderWindow &window)
 {
     m_inputText.setString(m_input);
@@ -291,12 +290,13 @@ void HashTableScreen::update(const sf::RenderWindow &window)
             else
             {
                 m_isPlaying = false;
-                m_playPauseButton.setText("Play"); // Cập nhật text nút khi kết thúc
+                m_playPauseButton.setText("Play");
             }
         }
     }
 }
 
+// Vẽ các cột (buckets), các nút (nodes) và các đường nối (links) của bảng băm
 void HashTableScreen::draw(sf::RenderWindow &window) const
 {
     window.draw(m_background);
@@ -365,36 +365,31 @@ void HashTableScreen::draw(sf::RenderWindow &window) const
         msg.setFillColor(sf::Color(45, 52, 54));
         window.draw(msg);
 
-        // --- PHẦN VẼ KHUNG PSEUDOCODE ĐÃ ĐIỀU CHỈNH ---
-        float pcX = 950.f;      // Giữ nguyên hoặc xê dịch nhẹ sang trái nếu cần
-        float pcY = 400.f;      // ĐẨY XUỐNG DƯỚI (thay vì 200.f) để không che bảng
-        float pcWidth = 300.f;  // Tăng nhẹ chiều rộng để chữ không bị sát lề
-        float pcHeight = 220.f; // Giảm chiều cao cho vừa vặn với số dòng code
+        float pcX = 950.f;
+        float pcY = 400.f;
+        float pcWidth = 300.f;
+        float pcHeight = 220.f;
 
-        // 1. Vẽ nền cho khung Pseudocode
         sf::RectangleShape pcBox({pcWidth, pcHeight});
         pcBox.setPosition({pcX, pcY});
-        pcBox.setFillColor(sf::Color(255, 255, 255, 230)); // Tăng độ đậm nền một chút
+        pcBox.setFillColor(sf::Color(255, 255, 255, 230));
         pcBox.setOutlineThickness(2.f);
         pcBox.setOutlineColor(sf::Color(45, 52, 54));
         window.draw(pcBox);
 
-        // 2. Vẽ dải màu tiêu đề
         sf::RectangleShape pcHeader({pcWidth, 30.f});
         pcHeader.setPosition({pcX, pcY});
         pcHeader.setFillColor(sf::Color(45, 52, 54));
         window.draw(pcHeader);
 
-        // 3. Vẽ chữ "Pseudocode" tiêu đề
         sf::Text pcTitle(m_font, "Pseudocode", 18);
         pcTitle.setPosition({pcX + 10.f, pcY + 3.f});
         pcTitle.setFillColor(sf::Color::White);
         window.draw(pcTitle);
 
-        // 4. Vẽ các dòng code
         for (size_t i = 0; i < m_pseudocode.size(); ++i)
         {
-            sf::Text code(m_font, m_pseudocode[i], 16); // Giảm size chữ xuống 16 cho gọn
+            sf::Text code(m_font, m_pseudocode[i], 16);
             code.setPosition({pcX + 15.f, pcY + 45.f + i * 25.f});
 
             if (m_steps[m_currentStep].highlightLine == (int)i)
