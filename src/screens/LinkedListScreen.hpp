@@ -100,13 +100,13 @@ public:
     int insert(int pos, int value);
     int popFront();
     int remove(int pos);
-    int update(int pos, int value);
+    int updateValue(int pos, int value);
     int searchPos(int pos, int &value);
 
     // UI
     void handleEvent(const sf::Event& event, 
         const sf::RenderWindow& window);
-    void update(const sf::RenderWindow& window);
+    void update(const sf::RenderWindow& window, std::string &message);
     void draw(sf::RenderWindow& window) const;
 };
 

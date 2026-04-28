@@ -152,7 +152,7 @@ int LinkedListObject::remove(int pos)
     }
 }
 
-int LinkedListObject::update(int pos, int value)
+int LinkedListObject::updateValue(int pos, int value)
 {
     if (pos >= list.size() || pos < 0) return 2; // invalid position 
 
@@ -178,7 +178,7 @@ int LinkedListObject::searchPos(int pos, int &value)
     try 
     {
         // update mode
-        updateMode(pos + 1, "Update", pos, value);
+        updateMode(pos + 1, "Search", pos, value);
 
         // search
         value = list[pos];
@@ -290,7 +290,7 @@ void LinkedListObject::handleEvent(const sf::Event& event,
     }
 }
 
-void LinkedListObject::update(const sf::RenderWindow& window)
+void LinkedListObject::update(const sf::RenderWindow& window, std::string &message)
 {
     if (isAuto) 
     {
@@ -315,8 +315,37 @@ void LinkedListObject::update(const sf::RenderWindow& window)
     }
 
     if (isStep)
+    {
         m_stepText.setString("Step " + std::to_string(curStep)
                             + "/" + std::to_string(cntSteps));
+        
+        if (curStep - 1 <= s_pos - (mode == "Insert"))
+        {
+            if (curStep == cntSteps && mode == "Search") 
+                message = "position " + std::to_string(s_pos) + " found, has value " + std::to_string(list[s_pos]);
+            else
+                message = "pointer at position " + std::to_string(curStep - 1);
+        }
+        else if (mode == "Insert")
+        {
+            if (curStep + 1 == cntSteps)
+                message = "disconnected pointer between positions " + std::to_string(s_pos) 
+                        + " and " + std::to_string(s_pos+1) + ", created a new position";
+            else if (curStep == cntSteps)
+                message = "reconnected the positions to accomodate the new position";
+        }
+        else if (mode == "Remove")
+        {
+            if (curStep + 1 == cntSteps || stepList.size() == 1)
+                message = "disconnected all pointers to position " + std::to_string(s_pos) + ", and remove the position";
+            else if (curStep == cntSteps)
+                message = "reconnected the remaining positions";
+        }
+        else if (mode == "Update")
+        {
+            message = "updated position " + std::to_string(s_pos) + " to have value " + std::to_string(s_value);
+        }
+    }
     else m_stepText.setString("");
     sf::FloatRect bounds = m_stepText.getLocalBounds();
     m_stepText.setOrigin({
@@ -324,6 +353,7 @@ void LinkedListObject::update(const sf::RenderWindow& window)
         bounds.position.y + bounds.size.y / 2.f
     });
     m_stepText.setPosition({stepsX, stepsY-32.f});
+
 }
 
 void LinkedListObject::drawStepMenu(sf::RenderWindow& window) const
@@ -973,7 +1003,7 @@ void LinkedListScreen::remove(int pos)
 
 void LinkedListScreen::update(int pos, int value)
 {
-    int err = list.update(pos, value);
+    int err = list.updateValue(pos, value);
     switch (err) {
         case 2:
             m_message = "invalid position";
@@ -1151,7 +1181,9 @@ void LinkedListScreen::update(const sf::RenderWindow& window)
     // updating values
     m_inputPosition->update();
     m_inputValue->update();
-    list.update(window);
+    std::string listMessage = "";
+    list.update(window, listMessage);
+    if (listMessage != "") m_message = listMessage;
     
     m_messageText.setString(m_message);
     centerTextX(m_messageText, 640.f, 690.f);
